@@ -112,26 +112,26 @@
     pointer-events: none;
   }
 
-  /* Pedals (side-by-side, brake LEFT, gas RIGHT) */
+  /* Pedals - round, side-by-side like Car Parking Multiplayer */
   .pedal {
     pointer-events: auto;
-    width: 88px;
-    height: 88px;
-    border-radius: 18px;
-    border: 3px solid;
+    width: 95px;
+    height: 95px;
+    border-radius: 50%;
+    border: 4px solid;
     cursor: pointer;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    font-size: 28px;
+    font-size: 30px;
     font-weight: 800;
     color: white;
     transition: transform 0.08s;
     -webkit-user-select: none;
     user-select: none;
     backdrop-filter: blur(10px);
-    box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.5), inset 0 -8px 16px rgba(0,0,0,0.3);
   }
   .pedal .lbl {
     font-size: 10px;
@@ -157,7 +157,15 @@
     transform: scale(0.92);
   }
 
-  /* Steering wheel */
+  /* Pedals group (right side) */
+  .pedals-group {
+    pointer-events: auto;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  /* Steering wheel container - LEFT side like CPM */
   .wheel-wrap {
     pointer-events: auto;
     width: 200px;
@@ -315,16 +323,13 @@
 
 <!-- Hint -->
 <div class="hint" id="hint">
-  🚗 <b>Drive!</b> Use the <b>wheel</b> to steer<br>
-  🛑 <b>Brake</b> (left) &nbsp; ⛽ <b>Gas</b> (right)<br>
+  🚗 <b>Drive!</b> Drag the <b>wheel</b> (left) to steer<br>
+  🛑 <b>Brake</b> + ⛽ <b>Gas</b> pedals on the right<br>
   📷 Tap <b>camera</b> button to change view
 </div>
 
-<!-- Controls: brake LEFT, wheel CENTER, gas RIGHT -->
+<!-- Controls: wheel LEFT, pedals (brake+gas) side-by-side RIGHT -->
 <div class="controls">
-  <button class="pedal brake" id="brakeBtn">
-    🛑<span class="lbl">BRAKE</span>
-  </button>
   <div class="wheel-wrap" id="wheelWrap">
     <div class="wheel" id="wheel">
       <div class="wheel-marker"></div>
@@ -332,9 +337,14 @@
       <div class="wheel-center">🚗</div>
     </div>
   </div>
-  <button class="pedal gas" id="gasBtn">
-    ⛽<span class="lbl">GAS</span>
-  </button>
+  <div class="pedals-group">
+    <button class="pedal brake" id="brakeBtn">
+      🛑<span class="lbl">BRAKE</span>
+    </button>
+    <button class="pedal gas" id="gasBtn">
+      ⛽<span class="lbl">GAS</span>
+    </button>
+  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -408,37 +418,83 @@ ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// ============== Road strips ==============
+// ============== Road grid (denser, wider, always visible) ==============
 const roads = [];
-function makeRoad(x, z, w, h) {
-  const roadGeo = new THREE.PlaneGeometry(w, h);
-  const roadCanvas = document.createElement('canvas');
-  roadCanvas.width = 64;
-  roadCanvas.height = 64;
-  const rctx = roadCanvas.getContext('2d');
-  rctx.fillStyle = '#333333';
-  rctx.fillRect(0, 0, 64, 64);
-  // Yellow dashed line in middle (for vertical roads)
-  rctx.fillStyle = '#fbbf24';
-  rctx.fillRect(30, 0, 4, 30);
-  rctx.fillRect(30, 40, 4, 30);
-  const roadTex = new THREE.CanvasTexture(roadCanvas);
-  roadTex.wrapS = roadTex.wrapT = THREE.RepeatWrapping;
-  roadTex.repeat.set(1, h / 20);
-  const roadMat = new THREE.MeshLambertMaterial({ map: roadTex });
-  const mesh = new THREE.Mesh(roadGeo, roadMat);
+const ROAD_SPACING = 80; // road every 80 units
+const ROAD_WIDTH = 18; // wider roads (was 14-20)
+
+// Pre-built road textures (one for vertical roads, one for horizontal)
+function makeRoadTexture(isVertical) {
+  const c = document.createElement('canvas');
+  c.width = 64;
+  c.height = 64;
+  const ctx = c.getContext('2d');
+  // Dark asphalt
+  ctx.fillStyle = '#2a2a2a';
+  ctx.fillRect(0, 0, 64, 64);
+  // Add subtle gray speckles for texture
+  for (let i = 0; i < 200; i++) {
+    ctx.fillStyle = Math.random() > 0.5 ? '#333333' : '#1f1f1f';
+    ctx.fillRect(Math.random() * 64, Math.random() * 64, 2, 2);
+  }
+  // White dashed center line
+  ctx.fillStyle = '#fbbf24'; // yellow
+  if (isVertical) {
+    // Dashes run along the road (Y axis = along length)
+    for (let y = 0; y < 64; y += 32) {
+      ctx.fillRect(30, y, 4, 20);
+    }
+    // White edge lines on sides
+    ctx.fillStyle = '#e5e7eb';
+    ctx.fillRect(6, 0, 2, 64);
+    ctx.fillRect(56, 0, 2, 64);
+  } else {
+    // Horizontal road - dashes run along X axis
+    for (let x = 0; x < 64; x += 32) {
+      ctx.fillRect(x, 30, 20, 4);
+    }
+    // White edge lines top/bottom
+    ctx.fillStyle = '#e5e7eb';
+    ctx.fillRect(0, 6, 64, 2);
+    ctx.fillRect(0, 56, 64, 2);
+  }
+  return new THREE.CanvasTexture(c);
+}
+
+const vRoadTex = makeRoadTexture(true);
+vRoadTex.wrapS = vRoadTex.wrapT = THREE.RepeatWrapping;
+const hRoadTex = makeRoadTexture(false);
+hRoadTex.wrapS = hRoadTex.wrapT = THREE.RepeatWrapping;
+
+function makeRoad(x, z, w, h, isVertical) {
+  const geo = new THREE.PlaneGeometry(w, h);
+  const tex = isVertical ? vRoadTex.clone() : hRoadTex.clone();
+  tex.needsUpdate = true;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  // Repeat texture along the length of the road
+  if (isVertical) {
+    tex.repeat.set(1, h / 20);
+  } else {
+    tex.repeat.set(w / 20, 1);
+  }
+  const mat = new THREE.MeshLambertMaterial({ map: tex });
+  const mesh = new THREE.Mesh(geo, mat);
   mesh.rotation.x = -Math.PI / 2;
-  mesh.position.set(x, 0.1, z);
+  // Y=0.2 to avoid z-fighting with ground at y=0
+  mesh.position.set(x, 0.2, z);
   mesh.receiveShadow = true;
   scene.add(mesh);
-  roads.push(mesh);
+  roads.push({ mesh, baseX: x, baseZ: z, w, h, isVertical });
 }
-makeRoad(0, 0, 20, GROUND_SIZE);
-makeRoad(0, 0, GROUND_SIZE, 20);
-makeRoad(150, 0, 14, GROUND_SIZE);
-makeRoad(-150, 0, 14, GROUND_SIZE);
-makeRoad(0, 150, GROUND_SIZE, 14);
-makeRoad(0, -150, 14, GROUND_SIZE);
+
+// Build a road grid: every ROAD_SPACING units in both X and Z
+// Cover a large area (±1000) so user always sees roads nearby
+for (let x = -800; x <= 800; x += ROAD_SPACING) {
+  makeRoad(x, 0, ROAD_WIDTH, 2000, true);
+}
+for (let z = -800; z <= 800; z += ROAD_SPACING) {
+  makeRoad(0, z, 2000, ROAD_WIDTH, false);
+}
 
 // ============== Car ==============
 const carGroup = new THREE.Group();
@@ -850,8 +906,8 @@ function update() {
     ground.position.z += Math.round(carState.z / WRAP_DIST) * WRAP_DIST * 2;
     // Move roads
     roads.forEach(r => {
-      r.position.x += Math.round(carState.x / WRAP_DIST) * WRAP_DIST * 2;
-      r.position.z += Math.round(carState.z / WRAP_DIST) * WRAP_DIST * 2;
+      r.mesh.position.x += Math.round(carState.x / WRAP_DIST) * WRAP_DIST * 2;
+      r.mesh.position.z += Math.round(carState.z / WRAP_DIST) * WRAP_DIST * 2;
     });
     // Reposition objects that are too far
     trees.forEach(t => {
