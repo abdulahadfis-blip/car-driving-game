@@ -477,11 +477,13 @@ function makeRoad(x, z, w, h, isVertical) {
   } else {
     tex.repeat.set(w / 20, 1);
   }
-  const mat = new THREE.MeshLambertMaterial({ map: tex });
+  // Use MeshBasicMaterial so roads are ALWAYS visible regardless
+  // of lighting/camera angle. MeshLambertMaterial can be too dark.
+  const mat = new THREE.MeshBasicMaterial({ map: tex });
   const mesh = new THREE.Mesh(geo, mat);
   mesh.rotation.x = -Math.PI / 2;
-  // Y=0.2 to avoid z-fighting with ground at y=0
-  mesh.position.set(x, 0.2, z);
+  // Y=0.3 to avoid z-fighting with ground at y=0 (higher than before)
+  mesh.position.set(x, 0.3, z);
   mesh.receiveShadow = true;
   scene.add(mesh);
   roads.push({ mesh, baseX: x, baseZ: z, w, h, isVertical });
@@ -784,42 +786,78 @@ function wheelEnd() {
   wheelTargetAngle = 0; // return to center
 }
 
-// Touch events
-wheelWrap.addEventListener('touchstart', (e) => {
-  e.preventDefault();
-  const t = e.touches[0];
-  wheelStart(t.clientX, t.clientY);
-}, { passive: false });
-wheelWrap.addEventListener('touchmove', (e) => {
-  e.preventDefault();
-  const t = e.touches[0];
-  wheelMove(t.clientX, t.clientY);
-}, { passive: false });
-wheelWrap.addEventListener('touchend', (e) => {
-  e.preventDefault();
-  wheelEnd();
-}, { passive: false });
+// Multi-touch pointer events (supports steering while pressing gas/brake)
+// Each pointer has a unique ID, so we can track multiple touches at once.
+let wheelPointerId = null;
 
-// Mouse events (desktop)
+wheelWrap.addEventListener('pointerdown', (e) => {
+  // Only track one pointer for the wheel at a time
+  if (wheelPointerId !== null) return;
+  e.preventDefault();
+  wheelPointerId = e.pointerId;
+  // Capture this pointer so we keep getting events even if finger
+  // moves outside the wheel area
+  try { wheelWrap.setPointerCapture(e.pointerId); } catch (err) {}
+  wheelStart(e.clientX, e.clientY);
+});
+
+wheelWrap.addEventListener('pointermove', (e) => {
+  if (e.pointerId !== wheelPointerId) return;
+  e.preventDefault();
+  wheelMove(e.clientX, e.clientY);
+});
+
+const endWheelPointer = (e) => {
+  if (e.pointerId !== wheelPointerId) return;
+  e.preventDefault();
+  wheelPointerId = null;
+  try { wheelWrap.releasePointerCapture(e.pointerId); } catch (err) {}
+  wheelEnd();
+};
+
+wheelWrap.addEventListener('pointerup', endWheelPointer);
+wheelWrap.addEventListener('pointercancel', endWheelPointer);
+wheelWrap.addEventListener('pointerleave', endWheelPointer);
+
+// Mouse events (desktop) - mouse uses pointer events too, but we keep
+// these as backup in case pointer events have issues on desktop
 wheelWrap.addEventListener('mousedown', (e) => {
+  if (wheelPointerId !== null) return;
   wheelStart(e.clientX, e.clientY);
   e.preventDefault();
 });
 document.addEventListener('mousemove', (e) => {
-  if (wheelDragging) wheelMove(e.clientX, e.clientY);
+  if (wheelDragging && wheelPointerId === null) wheelMove(e.clientX, e.clientY);
 });
 document.addEventListener('mouseup', () => {
-  if (wheelDragging) wheelEnd();
+  if (wheelDragging && wheelPointerId === null) wheelEnd();
 });
 
 // ============== Pedals ==============
+// Use pointer events with capture so each pedal tracks its own touch
+// independently. This allows multi-touch: hold gas with one finger
+// AND turn the steering wheel with another finger at the same time.
 function bindPedal(id, key) {
   const el = document.getElementById(id);
-  const down = (e) => { e.preventDefault(); input[key] = true; el.classList.add('pressed'); };
-  const up = (e) => { e.preventDefault(); input[key] = false; el.classList.remove('pressed'); };
+  let pedalPointerId = null;
+  const down = (e) => {
+    if (pedalPointerId !== null) return;
+    e.preventDefault();
+    pedalPointerId = e.pointerId;
+    try { el.setPointerCapture(e.pointerId); } catch (err) {}
+    input[key] = true;
+    el.classList.add('pressed');
+  };
+  const up = (e) => {
+    if (e.pointerId !== pedalPointerId) return;
+    e.preventDefault();
+    pedalPointerId = null;
+    try { el.releasePointerCapture(e.pointerId); } catch (err) {}
+    input[key] = false;
+    el.classList.remove('pressed');
+  };
   el.addEventListener('pointerdown', down);
   el.addEventListener('pointerup', up);
-  el.addEventListener('pointerleave', up);
   el.addEventListener('pointercancel', up);
 }
 bindPedal('gasBtn', 'gas');
