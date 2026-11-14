@@ -645,8 +645,8 @@ function updateCamera() {
 
   switch (camMode) {
     case 0: // Chase - behind and above
-      camX = car.x - Math.sin(carYaw) * -10;
-      camZ = car.z - Math.cos(carYaw) * -10;
+      camX = car.x - Math.sin(carYaw) * 10;
+      camZ = car.z - Math.cos(carYaw) * 10;
       camY = 5;
       lookX = car.x + Math.sin(carYaw) * 10;
       lookY = 1.5;
@@ -806,7 +806,11 @@ function update() {
   // Apply rotation to wheel visual
   wheelEl.style.transform = `rotate(${wheelAngle}rad)`;
   // Normalize steering: -1 to 1
-  carState.steer = wheelAngle / (Math.PI / 2);
+  // NEGATED: when wheel turns right (positive angle), we want car to
+  // visually turn right. In Three.js coords with camera looking toward
+  // +Z, +X is on the LEFT of the screen. So we negate to make
+  // right=right visually.
+  carState.steer = -wheelAngle / (Math.PI / 2);
 
   // Acceleration / brake
   if (input.gas) {
