@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#1e3a8a">
-<title>🚗 Car Driving Game</title>
+<meta name="theme-color" content="#0f172a">
+<title>🚗 3D Car Driving Game</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; user-select: none; }
   html, body {
@@ -19,21 +19,19 @@
     touch-action: none;
     overscroll-behavior: none;
   }
-  #game {
+  #canvas {
+    display: block;
     width: 100vw;
     height: 100vh;
     height: 100dvh;
-    display: block;
     position: fixed;
     top: 0; left: 0;
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
-  canvas { display: block; width: 100%; height: 100%; }
 
-  /* Top speed badge */
+  /* Speed badge (top-center) */
   .speed-badge {
     position: fixed;
-    top: calc(env(safe-area-inset-top) + 14px);
+    top: calc(env(safe-area-inset-top) + 12px);
     left: 50%;
     transform: translateX(-50%);
     background: rgba(15, 23, 42, 0.85);
@@ -51,7 +49,7 @@
   }
   .speed-badge .icon { font-size: 18px; }
   .speed-badge .num {
-    font-size: 18px;
+    font-size: 20px;
     font-weight: 800;
     color: #93c5fd;
     min-width: 30px;
@@ -59,79 +57,40 @@
   }
   .speed-badge .unit { font-size: 11px; opacity: 0.8; }
 
-  /* Controls */
-  .controls {
+  /* Camera button (top-right) */
+  .cam-btn {
     position: fixed;
-    bottom: calc(env(safe-area-inset-bottom) + 20px);
-    left: 0;
-    right: 0;
-    padding: 0 24px;
-    display: flex;
-    justify-content: space-between;
-    align-items: end;
-    pointer-events: none;
-    z-index: 10;
-  }
-  .steer, .pedals {
-    display: flex;
-    gap: 14px;
-    pointer-events: auto;
-  }
-  .pedals { flex-direction: column-reverse; gap: 12px; }
-  .btn {
-    background: rgba(15, 23, 42, 0.85);
-    backdrop-filter: blur(10px);
-    border: 2px solid rgba(99, 102, 241, 0.5);
-    color: white;
-    font-size: 30px;
-    font-weight: 800;
-    border-radius: 50%;
-    width: 70px;
-    height: 70px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.08s;
-    -webkit-user-select: none;
-    user-select: none;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.3);
-  }
-  .btn:active, .btn.pressed {
-    transform: scale(0.92);
-    background: rgba(99, 102, 241, 0.6);
-  }
-  .btn.gas {
-    background: rgba(16, 185, 129, 0.85);
-    border-color: #10b981;
-    width: 90px; height: 90px;
-    font-size: 36px;
-  }
-  .btn.gas:active, .btn.gas.pressed {
-    background: rgba(16, 185, 129, 1);
-  }
-  .btn.brake {
-    background: rgba(239, 68, 68, 0.85);
-    border-color: #ef4444;
-    width: 70px; height: 70px;
-    font-size: 28px;
-  }
-  .btn.brake:active, .btn.brake.pressed {
-    background: rgba(239, 68, 68, 1);
-  }
-  .btn.steer { font-size: 26px; }
-
-  /* Reset button (top-right) */
-  .reset-btn {
-    position: fixed;
-    top: calc(env(safe-area-inset-top) + 14px);
+    top: calc(env(safe-area-inset-top) + 12px);
     right: 14px;
     background: rgba(15, 23, 42, 0.85);
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(99, 102, 241, 0.4);
     color: white;
-    padding: 8px 14px;
-    border-radius: 18px;
+    border: 1px solid rgba(99, 102, 241, 0.4);
+    padding: 10px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    z-index: 11;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .cam-btn:active { transform: scale(0.95); }
+  .cam-btn .cam-icon { font-size: 16px; }
+  .cam-btn .cam-name { font-size: 11px; }
+
+  /* Reset button (top-left) */
+  .reset-btn {
+    position: fixed;
+    top: calc(env(safe-area-inset-top) + 12px);
+    left: 14px;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(10px);
+    color: white;
+    border: 1px solid rgba(99, 102, 241, 0.4);
+    padding: 10px 14px;
+    border-radius: 20px;
     font-size: 12px;
     font-weight: 700;
     cursor: pointer;
@@ -139,520 +98,884 @@
   }
   .reset-btn:active { transform: scale(0.95); }
 
-  /* Hint toast */
-  .hint {
+  /* Controls container */
+  .controls {
     position: fixed;
+    bottom: calc(env(safe-area-inset-bottom) + 14px);
+    left: 0;
+    right: 0;
+    padding: 0 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 10;
+    pointer-events: none;
+  }
+
+  /* Pedals (side-by-side, brake LEFT, gas RIGHT) */
+  .pedal {
+    pointer-events: auto;
+    width: 88px;
+    height: 88px;
+    border-radius: 18px;
+    border: 3px solid;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    font-weight: 800;
+    color: white;
+    transition: transform 0.08s;
+    -webkit-user-select: none;
+    user-select: none;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+  }
+  .pedal .lbl {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-top: 2px;
+    text-transform: uppercase;
+  }
+  .pedal.brake {
+    background: rgba(239, 68, 68, 0.85);
+    border-color: #ef4444;
+  }
+  .pedal.brake:active, .pedal.brake.pressed {
+    background: rgba(239, 68, 68, 1);
+    transform: scale(0.92);
+  }
+  .pedal.gas {
+    background: rgba(16, 185, 129, 0.85);
+    border-color: #10b981;
+  }
+  .pedal.gas:active, .pedal.gas.pressed {
+    background: rgba(16, 185, 129, 1);
+    transform: scale(0.92);
+  }
+
+  /* Steering wheel */
+  .wheel-wrap {
+    pointer-events: auto;
+    width: 200px;
+    height: 200px;
+    position: relative;
+    touch-action: none;
+  }
+  .wheel {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #475569, #1e293b 70%);
+    border: 6px solid #0f172a;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5), inset 0 0 30px rgba(0,0,0,0.5);
+    position: relative;
+    transform: rotate(0deg);
+    transition: transform 0.05s ease-out;
+  }
+  .wheel::before {
+    content: '';
+    position: absolute;
+    inset: 18px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #334155, #0f172a);
+    border: 3px solid #1e293b;
+  }
+  /* Steering wheel spokes */
+  .wheel::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 18px;
+    right: 18px;
+    height: 14px;
+    background: linear-gradient(to bottom, #475569, #1e293b);
+    transform: translateY(-50%);
+    border-radius: 4px;
+  }
+  .wheel-center {
+    position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #64748b, #1e293b);
+    border: 3px solid #0f172a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    box-shadow: inset 0 0 8px rgba(0,0,0,0.5);
+    z-index: 2;
+  }
+  /* Wheel rotation indicator (red stripe at top) */
+  .wheel-marker {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 14px;
+    height: 28px;
+    background: #ef4444;
+    border-radius: 4px;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
+    z-index: 3;
+  }
+
+  /* Vertical spoke (top to center) */
+  .wheel-vspoke {
+    position: absolute;
+    top: 18px;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 14px;
+    background: linear-gradient(to right, #475569, #1e293b);
+    border-radius: 4px;
+    z-index: 1;
+  }
+
+  /* Hint toast */
+  .hint {
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
     background: rgba(15, 23, 42, 0.95);
     backdrop-filter: blur(10px);
     color: white;
-    padding: 20px 26px;
+    padding: 14px 22px;
     border-radius: 16px;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     text-align: center;
     z-index: 20;
     border: 1px solid rgba(99, 102, 241, 0.5);
     pointer-events: none;
     transition: opacity 0.5s;
+    max-width: 280px;
   }
   .hint.hide { opacity: 0; }
   .hint b { color: #93c5fd; }
 
+  /* Compass / direction */
+  .compass {
+    position: fixed;
+    top: calc(env(safe-area-inset-top) + 60px);
+    right: 14px;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(10px);
+    color: white;
+    padding: 8px 14px;
+    border-radius: 18px;
+    font-size: 11px;
+    font-weight: 700;
+    z-index: 11;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .compass .arrow { font-size: 14px; color: #fbbf24; }
+
   @media (max-width: 400px) {
-    .btn { width: 60px; height: 60px; font-size: 26px; }
-    .btn.gas { width: 80px; height: 80px; font-size: 32px; }
+    .pedal { width: 76px; height: 76px; font-size: 24px; }
+    .wheel-wrap { width: 170px; height: 170px; }
+  }
+  @media (min-width: 800px) {
+    .pedal { width: 100px; height: 100px; font-size: 30px; }
+    .wheel-wrap { width: 220px; height: 220px; }
   }
 </style>
 </head>
 <body>
 
-<div id="game">
-  <canvas id="canvas"></canvas>
-</div>
+<canvas id="canvas"></canvas>
 
-<!-- Speed display -->
+<!-- Top UI -->
 <div class="speed-badge">
   <span class="icon">⚡</span>
   <span class="num" id="speedNum">0</span>
   <span class="unit">mph</span>
 </div>
-
-<!-- Reset -->
 <button class="reset-btn" onpointerdown="resetCar()">🔄 Reset</button>
+<button class="cam-btn" id="camBtn" onpointerdown="cycleCamera()">
+  <span class="cam-icon">📷</span>
+  <span class="cam-name" id="camName">Chase</span>
+</button>
+<div class="compass">
+  <span class="arrow" id="compassArrow">⬆️</span>
+  <span id="compassDir">N</span>
+</div>
 
 <!-- Hint -->
 <div class="hint" id="hint">
-  🚗 <b>Drive the car!</b><br><br>
-  ⛽ <b>Gas</b> = go faster<br>
-  🛑 <b>Brake</b> = slow down<br>
-  ◀️ ▶️ <b>Steer</b> = turn<br><br>
-  Or use <b>arrow keys</b> on computer
+  🚗 <b>Drive!</b> Use the <b>wheel</b> to steer<br>
+  🛑 <b>Brake</b> (left) &nbsp; ⛽ <b>Gas</b> (right)<br>
+  📷 Tap <b>camera</b> button to change view
 </div>
 
-<!-- Controls -->
+<!-- Controls: brake LEFT, wheel CENTER, gas RIGHT -->
 <div class="controls">
-  <div class="steer">
-    <button class="btn steer" id="leftBtn">◀️</button>
-    <button class="btn steer" id="rightBtn">▶️</button>
+  <button class="pedal brake" id="brakeBtn">
+    🛑<span class="lbl">BRAKE</span>
+  </button>
+  <div class="wheel-wrap" id="wheelWrap">
+    <div class="wheel" id="wheel">
+      <div class="wheel-marker"></div>
+      <div class="wheel-vspoke"></div>
+      <div class="wheel-center">🚗</div>
+    </div>
   </div>
-  <div class="pedals">
-    <button class="btn gas" id="gasBtn">⛽</button>
-    <button class="btn brake" id="brakeBtn">🛑</button>
-  </div>
+  <button class="pedal gas" id="gasBtn">
+    ⛽<span class="lbl">GAS</span>
+  </button>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 /* ============================================================
-   CAR DRIVING GAME
-   Top-down view, smooth car physics, no score - just drive!
+   3D CAR DRIVING GAME
+   - Three.js for 3D rendering
+   - Steering wheel (drag to rotate, returns to center)
+   - Brake LEFT, Gas RIGHT pedals (side-by-side)
+   - Multiple camera views (cycle with button)
+   - Infinite world (objects respawn as car drives)
    ============================================================ */
 
 const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
 
-// World setup
-const WORLD = { w: 2400, h: 2400 };
+// ============== Three.js setup ==============
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb); // sky blue
+scene.fog = new THREE.Fog(0x87ceeb, 200, 600); // distant fog
 
-// Car state
-let car = {
-  x: WORLD.w / 2,
-  y: WORLD.h / 2,
-  angle: -Math.PI / 2, // facing up
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+// Lighting
+const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambient);
+
+const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+sun.position.set(80, 120, 50);
+sun.castShadow = true;
+sun.shadow.mapSize.width = 1024;
+sun.shadow.mapSize.height = 1024;
+sun.shadow.camera.near = 10;
+sun.shadow.camera.far = 300;
+sun.shadow.camera.left = -100;
+sun.shadow.camera.right = 100;
+sun.shadow.camera.top = 100;
+sun.shadow.camera.bottom = -100;
+scene.add(sun);
+
+const hemi = new THREE.HemisphereLight(0x87ceeb, 0x3a5f0b, 0.4);
+scene.add(hemi);
+
+// ============== Ground (infinite tiled) ==============
+const GROUND_SIZE = 2000;
+const groundGeo = new THREE.PlaneGeometry(GROUND_SIZE, GROUND_SIZE);
+const groundCanvas = document.createElement('canvas');
+groundCanvas.width = 256;
+groundCanvas.height = 256;
+const gctx = groundCanvas.getContext('2d');
+gctx.fillStyle = '#3a7d3a';
+gctx.fillRect(0, 0, 256, 256);
+// Grass texture pattern
+for (let i = 0; i < 600; i++) {
+  gctx.fillStyle = Math.random() > 0.5 ? '#2d6b2d' : '#4a8a4a';
+  const x = Math.random() * 256;
+  const y = Math.random() * 256;
+  gctx.fillRect(x, y, 3, 3);
+}
+const groundTex = new THREE.CanvasTexture(groundCanvas);
+groundTex.wrapS = groundTex.wrapT = THREE.RepeatWrapping;
+groundTex.repeat.set(100, 100);
+const groundMat = new THREE.MeshLambertMaterial({ map: groundTex });
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// ============== Road strips ==============
+const roads = [];
+function makeRoad(x, z, w, h) {
+  const roadGeo = new THREE.PlaneGeometry(w, h);
+  const roadCanvas = document.createElement('canvas');
+  roadCanvas.width = 64;
+  roadCanvas.height = 64;
+  const rctx = roadCanvas.getContext('2d');
+  rctx.fillStyle = '#333333';
+  rctx.fillRect(0, 0, 64, 64);
+  // Yellow dashed line in middle (for vertical roads)
+  rctx.fillStyle = '#fbbf24';
+  rctx.fillRect(30, 0, 4, 30);
+  rctx.fillRect(30, 40, 4, 30);
+  const roadTex = new THREE.CanvasTexture(roadCanvas);
+  roadTex.wrapS = roadTex.wrapT = THREE.RepeatWrapping;
+  roadTex.repeat.set(1, h / 20);
+  const roadMat = new THREE.MeshLambertMaterial({ map: roadTex });
+  const mesh = new THREE.Mesh(roadGeo, roadMat);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.position.set(x, 0.1, z);
+  mesh.receiveShadow = true;
+  scene.add(mesh);
+  roads.push(mesh);
+}
+makeRoad(0, 0, 20, GROUND_SIZE);
+makeRoad(0, 0, GROUND_SIZE, 20);
+makeRoad(150, 0, 14, GROUND_SIZE);
+makeRoad(-150, 0, 14, GROUND_SIZE);
+makeRoad(0, 150, GROUND_SIZE, 14);
+makeRoad(0, -150, 14, GROUND_SIZE);
+
+// ============== Car ==============
+const carGroup = new THREE.Group();
+
+// Body
+const bodyGeo = new THREE.BoxGeometry(3, 1, 5);
+const bodyMat = new THREE.MeshPhongMaterial({ color: 0xdc2626, shininess: 80 });
+const body = new THREE.Mesh(bodyGeo, bodyMat);
+body.position.y = 1.0;
+body.castShadow = true;
+carGroup.add(body);
+
+// Cabin (smaller box on top)
+const cabinGeo = new THREE.BoxGeometry(2.5, 0.9, 2.4);
+const cabinMat = new THREE.MeshPhongMaterial({ color: 0x1e3a8a, shininess: 100 });
+const cabin = new THREE.Mesh(cabinGeo, cabinMat);
+cabin.position.set(0, 1.85, -0.3);
+cabin.castShadow = true;
+carGroup.add(cabin);
+
+// Windshield (front)
+const windshieldMat = new THREE.MeshPhongMaterial({
+  color: 0x93c5fd, transparent: true, opacity: 0.6, shininess: 200
+});
+const windshield = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.8), windshieldMat);
+windshield.position.set(0, 1.85, 0.9);
+windshield.rotation.x = -Math.PI / 2 + 0.5;
+carGroup.add(windshield);
+
+// Headlights (front)
+[-1, 1].forEach(side => {
+  const light = new THREE.Mesh(
+    new THREE.BoxGeometry(0.6, 0.3, 0.1),
+    new THREE.MeshPhongMaterial({ color: 0xfde68a, emissive: 0xfde68a, emissiveIntensity: 0.5 })
+  );
+  light.position.set(side * 1.0, 1.0, 2.5);
+  carGroup.add(light);
+});
+
+// Taillights (back)
+[-1, 1].forEach(side => {
+  const light = new THREE.Mesh(
+    new THREE.BoxGeometry(0.6, 0.3, 0.1),
+    new THREE.MeshPhongMaterial({ color: 0xef4444, emissive: 0xef4444, emissiveIntensity: 0.4 })
+  );
+  light.position.set(side * 1.0, 1.0, -2.5);
+  carGroup.add(light);
+});
+
+// Wheels
+const wheels = [];
+const wheelGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.4, 16);
+const wheelMat = new THREE.MeshPhongMaterial({ color: 0x1a1a1a });
+const wheelPositions = [
+  [-1.5, 0.6, 1.6],
+  [1.5, 0.6, 1.6],
+  [-1.5, 0.6, -1.6],
+  [1.5, 0.6, -1.6],
+];
+wheelPositions.forEach(pos => {
+  const w = new THREE.Mesh(wheelGeo, wheelMat);
+  w.position.set(pos[0], pos[1], pos[2]);
+  w.rotation.z = Math.PI / 2;
+  w.castShadow = true;
+  carGroup.add(w);
+  wheels.push(w);
+});
+
+scene.add(carGroup);
+
+// ============== World objects (trees, cones, buildings) ==============
+const trees = [];
+const cones = [];
+const buildings = [];
+
+function makeTree(x, z) {
+  const treeGroup = new THREE.Group();
+  const trunk = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.5, 0.7, 3, 8),
+    new THREE.MeshLambertMaterial({ color: 0x78350f })
+  );
+  trunk.position.y = 1.5;
+  trunk.castShadow = true;
+  treeGroup.add(trunk);
+  const leaves = new THREE.Mesh(
+    new THREE.SphereGeometry(2.2, 12, 10),
+    new THREE.MeshLambertMaterial({ color: 0x15803d })
+  );
+  leaves.position.y = 4;
+  leaves.castShadow = true;
+  treeGroup.add(leaves);
+  treeGroup.position.set(x, 0, z);
+  scene.add(treeGroup);
+  trees.push(treeGroup);
+}
+
+function makeCone(x, z) {
+  const cone = new THREE.Mesh(
+    new THREE.ConeGeometry(0.5, 1.4, 12),
+    new THREE.MeshPhongMaterial({ color: 0xf97316, shininess: 60 })
+  );
+  cone.position.set(x, 0.7, z);
+  cone.castShadow = true;
+  scene.add(cone);
+  cones.push({ mesh: cone, x, z, hit: false });
+}
+
+function makeBuilding(x, z) {
+  const w = 6 + Math.random() * 8;
+  const h = 8 + Math.random() * 15;
+  const d = 6 + Math.random() * 8;
+  const colors = [0x6b7280, 0x9ca3af, 0x4b5563, 0xd1d5db, 0xfbbf24];
+  const mat = new THREE.MeshPhongMaterial({
+    color: colors[Math.floor(Math.random() * colors.length)],
+    shininess: 30
+  });
+  const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  b.position.set(x, h / 2, z);
+  b.castShadow = true;
+  b.receiveShadow = true;
+  scene.add(b);
+  buildings.push(b);
+}
+
+// Scatter initial objects
+function scatterObjects() {
+  // Clear
+  trees.forEach(t => scene.remove(t));
+  cones.forEach(c => scene.remove(c.mesh));
+  buildings.forEach(b => scene.remove(b));
+  trees.length = 0;
+  cones.length = 0;
+  buildings.length = 0;
+
+  // Place objects in a large area around origin
+  for (let i = 0; i < 60; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 40 + Math.random() * 400;
+    const x = Math.cos(angle) * dist;
+    const z = Math.sin(angle) * dist;
+    // Keep away from roads
+    if (Math.abs(x) < 15 || Math.abs(z) < 15) continue;
+    makeTree(x, z);
+  }
+  for (let i = 0; i < 40; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 30 + Math.random() * 350;
+    const x = Math.cos(angle) * dist;
+    const z = Math.sin(angle) * dist;
+    if (Math.abs(x) < 15 || Math.abs(z) < 15) continue;
+    makeCone(x, z);
+  }
+  for (let i = 0; i < 25; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 80 + Math.random() * 400;
+    const x = Math.cos(angle) * dist;
+    const z = Math.sin(angle) * dist;
+    if (Math.abs(x) < 20 || Math.abs(z) < 20) continue;
+    makeBuilding(x, z);
+  }
+}
+scatterObjects();
+
+// ============== Car physics state ==============
+const carState = {
+  x: 0, z: 0,
+  angle: 0, // facing -Z (forward)
   speed: 0,
-  maxSpeed: 8,
-  accel: 0.18,
-  brakePower: 0.25,
-  friction: 0.04,
-  turnSpeed: 0.05,
-  width: 28,
-  length: 50
+  steer: 0, // -1 to 1
+  maxSpeed: 1.6,
+  accel: 0.025,
+  brakePower: 0.04,
+  reverseAccel: 0.015,
+  friction: 0.008,
+  turnSpeed: 0.025,
 };
 
 // Input state
-let input = { gas: false, brake: false, left: false, right: false };
+const input = { gas: false, brake: false };
+let wheelAngle = 0; // current wheel rotation (radians)
+let wheelTargetAngle = 0;
 
-// Camera
-let camera = { x: 0, y: 0 };
+// ============== Camera modes ==============
+const CAMERAS = [
+  { name: 'Chase', icon: '🚗' },
+  { name: 'Cockpit', icon: '🪟' },
+  { name: 'Hood', icon: '📍' },
+  { name: 'Top', icon: '🛰️' },
+  { name: 'Orbit', icon: '🔄' },
+];
+let camMode = 0;
+let orbitAngle = 0;
 
-// Obstacles (trees) and decorations
-let trees = [];
-let cones = [];
-let roads = [];
-
-// Particles (skid marks, dust)
-let particles = [];
-
-/* ---------- Resize ---------- */
-function resize() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-}
-window.addEventListener('resize', resize);
-window.addEventListener('orientationchange', () => setTimeout(resize, 200));
-resize();
-
-/* ---------- Setup world ---------- */
-function setupWorld() {
-  trees = [];
-  cones = [];
-  roads = [];
-  // Random trees
-  for (let i = 0; i < 80; i++) {
-    let tx, ty, ok = false, tries = 0;
-    while (!ok && tries < 50) {
-      tx = 100 + Math.random() * (WORLD.w - 200);
-      ty = 100 + Math.random() * (WORLD.h - 200);
-      // Keep away from car start
-      ok = Math.hypot(tx - car.x, ty - car.y) > 200;
-      // Keep away from road centers
-      if (ok) {
-        for (const r of roads) {
-          if (Math.abs(tx - r.x) < 80 || Math.abs(ty - r.y) < 80) { ok = false; break; }
-        }
-      }
-      tries++;
-    }
-    if (ok) trees.push({ x: tx, y: ty, r: 20 + Math.random() * 18 });
-  }
-  // Cones
-  for (let i = 0; i < 30; i++) {
-    cones.push({
-      x: 100 + Math.random() * (WORLD.w - 200),
-      y: 100 + Math.random() * (WORLD.h - 200),
-      hit: false
-    });
-  }
-  // Roads (horizontal and vertical strips)
-  roads.push({ x: WORLD.w / 2, y: 0, w: 100, h: WORLD.h, type: 'v' });
-  roads.push({ x: 0, y: WORLD.h / 2, w: WORLD.w, h: 100, type: 'h' });
-  roads.push({ x: WORLD.w / 4, y: 0, w: 80, h: WORLD.h, type: 'v' });
-  roads.push({ x: WORLD.w * 3 / 4, y: 0, w: 80, h: WORLD.h, type: 'v' });
-  roads.push({ x: 0, y: WORLD.h / 4, w: WORLD.w, h: 80, type: 'h' });
-  roads.push({ x: 0, y: WORLD.h * 3 / 4, w: WORLD.w, h: 80, type: 'h' });
-}
-setupWorld();
-
-/* ---------- Reset car ---------- */
-function resetCar() {
-  car.x = WORLD.w / 2;
-  car.y = WORLD.h / 2;
-  car.angle = -Math.PI / 2;
-  car.speed = 0;
-  particles = [];
-  // Reset cones
-  for (const c of cones) c.hit = false;
+function cycleCamera() {
+  camMode = (camMode + 1) % CAMERAS.length;
+  document.getElementById('camName').textContent = CAMERAS[camMode].name;
+  document.querySelector('.cam-btn .cam-icon').textContent = CAMERAS[camMode].icon;
 }
 
-/* ---------- Update physics ---------- */
-function update() {
-  // Acceleration
-  if (input.gas) {
-    car.speed += car.accel;
-  } else if (input.brake) {
-    if (car.speed > 0) car.speed -= car.brakePower;
-    else car.speed -= car.accel * 0.6; // reverse
-  } else {
-    // Friction
-    if (car.speed > 0) car.speed = Math.max(0, car.speed - car.friction);
-    else if (car.speed < 0) car.speed = Math.min(0, car.speed + car.friction);
-  }
-  // Clamp speed
-  if (car.speed > car.maxSpeed) car.speed = car.maxSpeed;
-  if (car.speed < -car.maxSpeed * 0.5) car.speed = -car.maxSpeed * 0.5;
+function updateCamera() {
+  const car = carState;
+  const carYaw = car.angle;
+  let camX, camY, camZ, lookX, lookY, lookZ;
 
-  // Steering (only when moving)
-  if (Math.abs(car.speed) > 0.05) {
-    const turnFactor = car.speed / car.maxSpeed;
-    if (input.left) car.angle -= car.turnSpeed * turnFactor * (car.speed > 0 ? 1 : -1);
-    if (input.right) car.angle += car.turnSpeed * turnFactor * (car.speed > 0 ? 1 : -1);
-  }
-
-  // Move
-  const newX = car.x + Math.cos(car.angle) * car.speed;
-  const newY = car.y + Math.sin(car.angle) * car.speed;
-
-  // Tree collision
-  let collided = false;
-  for (const t of trees) {
-    if (Math.hypot(newX - t.x, newY - t.y) < t.r + 20) {
-      collided = true;
+  switch (camMode) {
+    case 0: // Chase - behind and above
+      camX = car.x - Math.sin(carYaw) * -10;
+      camZ = car.z - Math.cos(carYaw) * -10;
+      camY = 5;
+      lookX = car.x + Math.sin(carYaw) * 10;
+      lookY = 1.5;
+      lookZ = car.z + Math.cos(carYaw) * 10;
       break;
-    }
+    case 1: // Cockpit - inside car
+      camX = car.x + Math.sin(carYaw) * 0.5;
+      camZ = car.z + Math.cos(carYaw) * 0.5;
+      camY = 2.2;
+      lookX = car.x + Math.sin(carYaw) * 20;
+      lookY = 2.0;
+      lookZ = car.z + Math.cos(carYaw) * 20;
+      break;
+    case 2: // Hood - low at front
+      camX = car.x + Math.sin(carYaw) * 2.5;
+      camZ = car.z + Math.cos(carYaw) * 2.5;
+      camY = 1.2;
+      lookX = car.x + Math.sin(carYaw) * 20;
+      lookY = 1.0;
+      lookZ = car.z + Math.cos(carYaw) * 20;
+      break;
+    case 3: // Top - high above
+      camX = car.x;
+      camZ = car.z + 0.1;
+      camY = 60;
+      lookX = car.x;
+      lookY = 0;
+      lookZ = car.z;
+      break;
+    case 4: // Orbit - rotates around car
+      orbitAngle += 0.01;
+      camX = car.x + Math.sin(orbitAngle) * 12;
+      camZ = car.z + Math.cos(orbitAngle) * 12;
+      camY = 5;
+      lookX = car.x;
+      lookY = 1.5;
+      lookZ = car.z;
+      break;
   }
-  // World bounds
-  if (newX < 30 || newX > WORLD.w - 30 || newY < 30 || newY > WORLD.h - 30) {
-    collided = true;
-  }
-
-  if (collided) {
-    car.speed = -car.speed * 0.3; // bounce back
-    // Skid particles
-    for (let i = 0; i < 5; i++) {
-      particles.push({
-        x: car.x, y: car.y,
-        vx: (Math.random() - 0.5) * 4,
-        vy: (Math.random() - 0.5) * 4,
-        life: 30,
-        type: 'dust'
-      });
-    }
-  } else {
-    car.x = newX;
-    car.y = newY;
-  }
-
-  // Cone collection (drive over them)
-  for (const c of cones) {
-    if (!c.hit && Math.hypot(car.x - c.x, car.y - c.y) < 25) {
-      c.hit = true;
-      // Sparkle particles
-      for (let i = 0; i < 8; i++) {
-        particles.push({
-          x: c.x, y: c.y,
-          vx: (Math.random() - 0.5) * 6,
-          vy: (Math.random() - 0.5) * 6,
-          life: 40,
-          type: 'spark'
-        });
-      }
-    }
-  }
-
-  // Update particles
-  for (let i = particles.length - 1; i >= 0; i--) {
-    const p = particles[i];
-    p.x += p.vx;
-    p.y += p.vy;
-    p.life--;
-    if (p.life <= 0) particles.splice(i, 1);
-  }
-
-  // Camera follows car
-  camera.x = car.x - canvas.width / 2;
-  camera.y = car.y - canvas.height / 2;
-  // Smooth camera
-  camera.x = Math.max(0, Math.min(WORLD.w - canvas.width, camera.x));
-  camera.y = Math.max(0, Math.min(WORLD.h - canvas.height, camera.y));
-
-  // Update speed display
-  document.getElementById('speedNum').textContent = Math.round(Math.abs(car.speed) * 12);
+  camera.position.set(camX, camY, camZ);
+  camera.lookAt(lookX, lookY, lookZ);
 }
 
-/* ---------- Draw ---------- */
-function draw() {
-  ctx.fillStyle = '#14532d';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+// ============== Steering wheel control ==============
+const wheelEl = document.getElementById('wheel');
+const wheelWrap = document.getElementById('wheelWrap');
+let wheelDragging = false;
+let wheelStartTouchAngle = 0;
+let wheelStartRotation = 0;
 
-  ctx.save();
-  ctx.translate(-camera.x, -camera.y);
-
-  // Draw grass pattern
-  const gridSize = 80;
-  const startX = Math.floor(camera.x / gridSize) * gridSize;
-  const startY = Math.floor(camera.y / gridSize) * gridSize;
-  for (let x = startX; x < camera.x + canvas.width + gridSize; x += gridSize) {
-    for (let y = startY; y < camera.y + canvas.height + gridSize; y += gridSize) {
-      if ((Math.floor(x / gridSize) + Math.floor(y / gridSize)) % 2 === 0) {
-        ctx.fillStyle = '#166534';
-      } else {
-        ctx.fillStyle = '#14532d';
-      }
-      ctx.fillRect(x, y, gridSize, gridSize);
-    }
-  }
-
-  // Draw roads
-  for (const r of roads) {
-    ctx.fillStyle = '#374151';
-    ctx.fillRect(r.x, r.y, r.w, r.h);
-    // Road markings (dashed yellow line in middle)
-    ctx.fillStyle = '#facc15';
-    if (r.type === 'v') {
-      for (let y = 0; y < r.h; y += 40) {
-        ctx.fillRect(r.x + r.w / 2 - 2, y, 4, 20);
-      }
-    } else {
-      for (let x = 0; x < r.w; x += 40) {
-        ctx.fillRect(x, r.y + r.h / 2 - 2, 20, 4);
-      }
-    }
-  }
-
-  // Draw cones
-  for (const c of cones) {
-    if (c.hit) continue;
-    // Cone shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
-    ctx.beginPath();
-    ctx.ellipse(c.x + 2, c.y + 3, 12, 8, 0, 0, Math.PI * 2);
-    ctx.fill();
-    // Cone (orange triangle)
-    ctx.fillStyle = '#f97316';
-    ctx.beginPath();
-    ctx.moveTo(c.x, c.y - 14);
-    ctx.lineTo(c.x - 10, c.y + 8);
-    ctx.lineTo(c.x + 10, c.y + 8);
-    ctx.closePath();
-    ctx.fill();
-    // White stripe
-    ctx.fillStyle = 'white';
-    ctx.fillRect(c.x - 8, c.y + 2, 16, 3);
-  }
-
-  // Draw trees
-  for (const t of trees) {
-    // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
-    ctx.beginPath();
-    ctx.ellipse(t.x + 6, t.y + 8, t.r, t.r * 0.7, 0, 0, Math.PI * 2);
-    ctx.fill();
-    // Trunk
-    ctx.fillStyle = '#78350f';
-    ctx.fillRect(t.x - 5, t.y - 5, 10, 18);
-    // Leaves (circle)
-    ctx.fillStyle = '#15803d';
-    ctx.beginPath();
-    ctx.arc(t.x, t.y - 10, t.r, 0, Math.PI * 2);
-    ctx.fill();
-    // Highlight
-    ctx.fillStyle = '#16a34a';
-    ctx.beginPath();
-    ctx.arc(t.x - t.r * 0.3, t.y - t.r * 0.4, t.r * 0.5, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // Draw particles
-  for (const p of particles) {
-    const alpha = p.life / 40;
-    if (p.type === 'dust') {
-      ctx.fillStyle = `rgba(120, 100, 60, ${alpha})`;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (p.type === 'spark') {
-      ctx.fillStyle = `rgba(250, 204, 21, ${alpha})`;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-
-  // Draw car
-  drawCar();
-
-  ctx.restore();
-
-  // Minimap (top-left)
-  drawMinimap();
+function getTouchAngle(clientX, clientY) {
+  const rect = wheelWrap.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  return Math.atan2(clientY - cy, clientX - cx);
 }
 
-function drawCar() {
-  ctx.save();
-  ctx.translate(car.x, car.y);
-  ctx.rotate(car.angle + Math.PI / 2); // car art faces "up" by default
-
-  // Car shadow
-  ctx.fillStyle = 'rgba(0,0,0,0.4)';
-  ctx.fillRect(-car.width / 2 + 4, -car.length / 2 + 5, car.width, car.length);
-
-  // Car body (red)
-  const grad = ctx.createLinearGradient(-car.width / 2, 0, car.width / 2, 0);
-  grad.addColorStop(0, '#b91c1c');
-  grad.addColorStop(0.5, '#ef4444');
-  grad.addColorStop(1, '#7f1d1d');
-  ctx.fillStyle = grad;
-  // Rounded rectangle
-  roundRect(-car.width / 2, -car.length / 2, car.width, car.length, 8);
-  ctx.fill();
-
-  // Windshield (front - top of car art)
-  ctx.fillStyle = '#1e293b';
-  roundRect(-car.width / 2 + 4, -car.length / 2 + 6, car.width - 8, 14, 4);
-  ctx.fill();
-  // Windshield reflection
-  ctx.fillStyle = 'rgba(147, 197, 253, 0.4)';
-  roundRect(-car.width / 2 + 5, -car.length / 2 + 7, (car.width - 10) / 2, 6, 2);
-  ctx.fill();
-
-  // Rear window
-  ctx.fillStyle = '#1e293b';
-  roundRect(-car.width / 2 + 4, car.length / 2 - 16, car.width - 8, 10, 3);
-  ctx.fill();
-
-  // Headlights (front)
-  ctx.fillStyle = '#fde68a';
-  ctx.fillRect(-car.width / 2 + 2, -car.length / 2 + 2, 5, 4);
-  ctx.fillRect(car.width / 2 - 7, -car.length / 2 + 2, 5, 4);
-
-  // Taillights (back, red)
-  ctx.fillStyle = car.brake ? '#fca5a5' : '#7f1d1d';
-  ctx.fillRect(-car.width / 2 + 2, car.length / 2 - 6, 5, 4);
-  ctx.fillRect(car.width / 2 - 7, car.length / 2 - 6, 5, 4);
-
-  // Wheels
-  ctx.fillStyle = '#0f172a';
-  // Front wheels
-  ctx.fillRect(-car.width / 2 - 3, -car.length / 2 + 8, 6, 10);
-  ctx.fillRect(car.width / 2 - 3, -car.length / 2 + 8, 6, 10);
-  // Back wheels
-  ctx.fillRect(-car.width / 2 - 3, car.length / 2 - 18, 6, 10);
-  ctx.fillRect(car.width / 2 - 3, car.length / 2 - 18, 6, 10);
-
-  ctx.restore();
+function wheelStart(clientX, clientY) {
+  wheelDragging = true;
+  wheelStartTouchAngle = getTouchAngle(clientX, clientY);
+  wheelStartRotation = wheelAngle;
 }
 
-function roundRect(x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
+function wheelMove(clientX, clientY) {
+  if (!wheelDragging) return;
+  const currentAngle = getTouchAngle(clientX, clientY);
+  let delta = currentAngle - wheelStartTouchAngle;
+  while (delta > Math.PI) delta -= 2 * Math.PI;
+  while (delta < -Math.PI) delta += 2 * Math.PI;
+  wheelTargetAngle = wheelStartRotation + delta;
+  // Clamp to ±90 degrees (π/2)
+  const maxSteer = Math.PI / 2;
+  if (wheelTargetAngle > maxSteer) wheelTargetAngle = maxSteer;
+  if (wheelTargetAngle < -maxSteer) wheelTargetAngle = -maxSteer;
 }
 
-function drawMinimap() {
-  const mw = 100, mh = 100;
-  const mx = canvas.width - mw - 20;
-  const my = canvas.height - mh - 120;
-  ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-  ctx.fillRect(mx, my, mw, mh);
-  ctx.strokeStyle = 'rgba(99, 102, 241, 0.5)';
-  ctx.strokeRect(mx, my, mw, mh);
-  // Trees
-  ctx.fillStyle = '#22c55e';
-  for (const t of trees) {
-    ctx.fillRect(mx + (t.x / WORLD.w) * mw - 1, my + (t.y / WORLD.h) * mh - 1, 2, 2);
-  }
-  // Cones
-  ctx.fillStyle = '#f97316';
-  for (const c of cones) {
-    if (!c.hit) ctx.fillRect(mx + (c.x / WORLD.w) * mw - 1, my + (c.y / WORLD.h) * mh - 1, 2, 2);
-  }
-  // Car (red dot)
-  ctx.fillStyle = '#ef4444';
-  ctx.beginPath();
-  ctx.arc(mx + (car.x / WORLD.w) * mw, my + (car.y / WORLD.h) * mh, 3, 0, Math.PI * 2);
-  ctx.fill();
-  // Label
-  ctx.fillStyle = 'white';
-  ctx.font = 'bold 10px sans-serif';
-  ctx.fillText('MAP', mx + 5, my + 12);
+function wheelEnd() {
+  wheelDragging = false;
+  wheelTargetAngle = 0; // return to center
 }
 
-/* ---------- Game loop ---------- */
-function loop() {
-  update();
-  draw();
-  requestAnimationFrame(loop);
-}
-loop();
+// Touch events
+wheelWrap.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  const t = e.touches[0];
+  wheelStart(t.clientX, t.clientY);
+}, { passive: false });
+wheelWrap.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  const t = e.touches[0];
+  wheelMove(t.clientX, t.clientY);
+}, { passive: false });
+wheelWrap.addEventListener('touchend', (e) => {
+  e.preventDefault();
+  wheelEnd();
+}, { passive: false });
 
-/* ---------- Input handlers ---------- */
-function bindButton(id, key) {
-  const btn = document.getElementById(id);
-  const press = (e) => { e.preventDefault(); input[key] = true; btn.classList.add('pressed'); };
-  const release = (e) => { e.preventDefault(); input[key] = false; btn.classList.remove('pressed'); };
-  btn.addEventListener('pointerdown', press);
-  btn.addEventListener('pointerup', release);
-  btn.addEventListener('pointerleave', release);
-  btn.addEventListener('pointercancel', release);
+// Mouse events (desktop)
+wheelWrap.addEventListener('mousedown', (e) => {
+  wheelStart(e.clientX, e.clientY);
+  e.preventDefault();
+});
+document.addEventListener('mousemove', (e) => {
+  if (wheelDragging) wheelMove(e.clientX, e.clientY);
+});
+document.addEventListener('mouseup', () => {
+  if (wheelDragging) wheelEnd();
+});
+
+// ============== Pedals ==============
+function bindPedal(id, key) {
+  const el = document.getElementById(id);
+  const down = (e) => { e.preventDefault(); input[key] = true; el.classList.add('pressed'); };
+  const up = (e) => { e.preventDefault(); input[key] = false; el.classList.remove('pressed'); };
+  el.addEventListener('pointerdown', down);
+  el.addEventListener('pointerup', up);
+  el.addEventListener('pointerleave', up);
+  el.addEventListener('pointercancel', up);
 }
-bindButton('gasBtn', 'gas');
-bindButton('brakeBtn', 'brake');
-bindButton('leftBtn', 'left');
-bindButton('rightBtn', 'right');
+bindPedal('gasBtn', 'gas');
+bindPedal('brakeBtn', 'brake');
 
 // Keyboard
+const keys = {};
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'ArrowUp') { input.gas = true; e.preventDefault(); }
-  else if (e.key === 'ArrowDown') { input.brake = true; e.preventDefault(); }
-  else if (e.key === 'ArrowLeft') { input.left = true; e.preventDefault(); }
-  else if (e.key === 'ArrowRight') { input.right = true; e.preventDefault(); }
-  else if (e.key === 'r' || e.key === 'R') { resetCar(); }
-  // Hide hint on first key press
+  keys[e.key] = true;
+  if (e.key === 'ArrowUp') input.gas = true;
+  else if (e.key === 'ArrowDown') input.brake = true;
+  else if (e.key === 'ArrowLeft') wheelTargetAngle = -Math.PI / 2;
+  else if (e.key === 'ArrowRight') wheelTargetAngle = Math.PI / 2;
+  else if (e.key === 'c' || e.key === 'C') cycleCamera();
+  else if (e.key === 'r' || e.key === 'R') resetCar();
   document.getElementById('hint').classList.add('hide');
 });
 document.addEventListener('keyup', (e) => {
+  keys[e.key] = false;
   if (e.key === 'ArrowUp') input.gas = false;
   else if (e.key === 'ArrowDown') input.brake = false;
-  else if (e.key === 'ArrowLeft') input.left = false;
-  else if (e.key === 'ArrowRight') input.right = false;
+  else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') wheelTargetAngle = 0;
 });
 
-// Hide hint after 5 seconds
-setTimeout(() => document.getElementById('hint').classList.add('hide'), 5000);
+// ============== Reset ==============
+function resetCar() {
+  carState.x = 0;
+  carState.z = 0;
+  carState.angle = 0;
+  carState.speed = 0;
+  carState.steer = 0;
+  wheelAngle = 0;
+  wheelTargetAngle = 0;
+}
 
-// Prevent scrolling/zooming on iOS Safari
+// ============== Update physics ==============
+function update() {
+  // Smooth wheel return + lerp to target
+  wheelAngle += (wheelTargetAngle - wheelAngle) * 0.25;
+  // Apply rotation to wheel visual
+  wheelEl.style.transform = `rotate(${wheelAngle}rad)`;
+  // Normalize steering: -1 to 1
+  carState.steer = wheelAngle / (Math.PI / 2);
+
+  // Acceleration / brake
+  if (input.gas) {
+    carState.speed += carState.accel;
+  } else if (input.brake) {
+    if (carState.speed > 0) {
+      carState.speed -= carState.brakePower;
+      if (carState.speed < 0) carState.speed = 0;
+    } else {
+      carState.speed -= carState.reverseAccel;
+    }
+  } else {
+    // Friction
+    if (carState.speed > 0) carState.speed = Math.max(0, carState.speed - carState.friction);
+    else if (carState.speed < 0) carState.speed = Math.min(0, carState.speed + carState.friction);
+  }
+
+  // Clamp speed
+  if (carState.speed > carState.maxSpeed) carState.speed = carState.maxSpeed;
+  if (carState.speed < -carState.maxSpeed * 0.5) carState.speed = -carState.maxSpeed * 0.5;
+
+  // Steering (only when moving)
+  if (Math.abs(carState.speed) > 0.01) {
+    const turnFactor = carState.speed / carState.maxSpeed;
+    carState.angle += carState.steer * carState.turnSpeed * turnFactor * (carState.speed > 0 ? 1 : -1);
+  }
+
+  // Move car
+  carState.x += Math.sin(carState.angle) * carState.speed;
+  carState.z += Math.cos(carState.angle) * carState.speed;
+
+  // Infinite world: move ground + objects + roads with car if too far
+  const WRAP_DIST = 500;
+  if (Math.abs(carState.x) > WRAP_DIST || Math.abs(carState.z) > WRAP_DIST) {
+    // Move ground
+    ground.position.x += Math.round(carState.x / WRAP_DIST) * WRAP_DIST * 2;
+    ground.position.z += Math.round(carState.z / WRAP_DIST) * WRAP_DIST * 2;
+    // Move roads
+    roads.forEach(r => {
+      r.position.x += Math.round(carState.x / WRAP_DIST) * WRAP_DIST * 2;
+      r.position.z += Math.round(carState.z / WRAP_DIST) * WRAP_DIST * 2;
+    });
+    // Reposition objects that are too far
+    trees.forEach(t => {
+      const dx = t.position.x - carState.x;
+      const dz = t.position.z - carState.z;
+      if (Math.abs(dx) > 300 || Math.abs(dz) > 300) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 150 + Math.random() * 200;
+        t.position.x = carState.x + Math.cos(angle) * dist;
+        t.position.z = carState.z + Math.sin(angle) * dist;
+      }
+    });
+    cones.forEach(c => {
+      const dx = c.mesh.position.x - carState.x;
+      const dz = c.mesh.position.z - carState.z;
+      if (Math.abs(dx) > 300 || Math.abs(dz) > 300) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 100 + Math.random() * 200;
+        c.mesh.position.x = carState.x + Math.cos(angle) * dist;
+        c.mesh.position.z = carState.z + Math.sin(angle) * dist;
+        c.x = c.mesh.position.x;
+        c.z = c.mesh.position.z;
+        c.hit = false;
+        c.mesh.visible = true;
+      }
+    });
+    buildings.forEach(b => {
+      const dx = b.position.x - carState.x;
+      const dz = b.position.z - carState.z;
+      if (Math.abs(dx) > 350 || Math.abs(dz) > 350) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 200 + Math.random() * 200;
+        b.position.x = carState.x + Math.cos(angle) * dist;
+        b.position.z = carState.z + Math.sin(angle) * dist;
+      }
+    });
+  }
+
+  // Cone collection (drive over them = sparkle/hide)
+  cones.forEach(c => {
+    if (c.hit) return;
+    const dx = c.mesh.position.x - carState.x;
+    const dz = c.mesh.position.z - carState.z;
+    if (Math.hypot(dx, dz) < 2.5) {
+      c.hit = true;
+      c.mesh.visible = false;
+    }
+  });
+
+  // Tree/building collision (bounce)
+  trees.forEach(t => {
+    const dx = t.position.x - carState.x;
+    const dz = t.position.z - carState.z;
+    if (Math.hypot(dx, dz) < 3) {
+      carState.speed = -carState.speed * 0.3;
+      carState.x -= Math.sin(carState.angle) * 1.5;
+      carState.z -= Math.cos(carState.angle) * 1.5;
+    }
+  });
+  buildings.forEach(b => {
+    const dx = b.position.x - carState.x;
+    const dz = b.position.z - carState.z;
+    if (Math.abs(dx) < 5 && Math.abs(dz) < 5) {
+      carState.speed = -carState.speed * 0.4;
+      carState.x -= Math.sin(carState.angle) * 2;
+      carState.z -= Math.cos(carState.angle) * 2;
+    }
+  });
+
+  // Update car visual
+  carGroup.position.x = carState.x;
+  carGroup.position.z = carState.z;
+  carGroup.rotation.y = carState.angle;
+
+  // Spin wheels
+  const spin = carState.speed * 0.3;
+  wheels.forEach(w => { w.rotation.x += spin; });
+
+  // Brake light intensity
+  carGroup.children.forEach(child => {
+    if (child.material && child.material.emissive && child.material.emissive.getHex() === 0xef4444) {
+      child.material.emissiveIntensity = input.brake ? 1.0 : 0.4;
+    }
+  });
+
+  // Update UI
+  document.getElementById('speedNum').textContent = Math.round(Math.abs(carState.speed) * 50);
+
+  // Compass
+  const dir = ((carState.angle * 180 / Math.PI) % 360 + 360) % 360;
+  let compass = 'N';
+  let arrow = '⬆️';
+  if (dir > 45 && dir <= 135) { compass = 'E'; arrow = '➡️'; }
+  else if (dir > 135 && dir <= 225) { compass = 'S'; arrow = '⬇️'; }
+  else if (dir > 225 && dir <= 315) { compass = 'W'; arrow = '⬅️'; }
+  document.getElementById('compassDir').textContent = compass;
+  document.getElementById('compassArrow').textContent = arrow;
+}
+
+// ============== Render loop ==============
+function animate() {
+  update();
+  updateCamera();
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+animate();
+
+// ============== Resize ==============
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+window.addEventListener('orientationchange', () => setTimeout(() => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}, 200));
+
+// Prevent iOS scrolling/zooming
 document.addEventListener('gesturestart', (e) => e.preventDefault());
-document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+document.addEventListener('touchmove', (e) => {
+  if (e.target.tagName !== 'CANVAS') e.preventDefault();
+}, { passive: false });
+
+// Hide hint after 6 seconds
+setTimeout(() => document.getElementById('hint').classList.add('hide'), 6000);
 </script>
 
 </body>
