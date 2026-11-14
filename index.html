@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1e3a8a">
+<title>🚗 Car Driving Game</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; user-select: none; }
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #0f172a;
+    color: white;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    touch-action: none;
+    overscroll-behavior: none;
+  }
+  #game {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    display: block;
+    position: fixed;
+    top: 0; left: 0;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  /* Top speed badge */
+  .speed-badge {
+    position: fixed;
+    top: calc(env(safe-area-inset-top) + 14px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(10px);
+    color: white;
+    padding: 8px 18px;
+    border-radius: 24px;
+    font-size: 14px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 10;
+    border: 1px solid rgba(99, 102, 241, 0.4);
+  }
+  .speed-badge .icon { font-size: 18px; }
+  .speed-badge .num {
+    font-size: 18px;
+    font-weight: 800;
+    color: #93c5fd;
+    min-width: 30px;
+    text-align: right;
+  }
+  .speed-badge .unit { font-size: 11px; opacity: 0.8; }
+
+  /* Controls */
+  .controls {
+    position: fixed;
+    bottom: calc(env(safe-area-inset-bottom) + 20px);
+    left: 0;
+    right: 0;
+    padding: 0 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .steer, .pedals {
+    display: flex;
+    gap: 14px;
+    pointer-events: auto;
+  }
+  .pedals { flex-direction: column-reverse; gap: 12px; }
+  .btn {
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(10px);
+    border: 2px solid rgba(99, 102, 241, 0.5);
+    color: white;
+    font-size: 30px;
+    font-weight: 800;
+    border-radius: 50%;
+    width: 70px;
+    height: 70px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.08s;
+    -webkit-user-select: none;
+    user-select: none;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.3);
+  }
+  .btn:active, .btn.pressed {
+    transform: scale(0.92);
+    background: rgba(99, 102, 241, 0.6);
+  }
+  .btn.gas {
+    background: rgba(16, 185, 129, 0.85);
+    border-color: #10b981;
+    width: 90px; height: 90px;
+    font-size: 36px;
+  }
+  .btn.gas:active, .btn.gas.pressed {
+    background: rgba(16, 185, 129, 1);
+  }
+  .btn.brake {
+    background: rgba(239, 68, 68, 0.85);
+    border-color: #ef4444;
+    width: 70px; height: 70px;
+    font-size: 28px;
+  }
+  .btn.brake:active, .btn.brake.pressed {
+    background: rgba(239, 68, 68, 1);
+  }
+  .btn.steer { font-size: 26px; }
+
+  /* Reset button (top-right) */
+  .reset-btn {
+    position: fixed;
+    top: calc(env(safe-area-inset-top) + 14px);
+    right: 14px;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(99, 102, 241, 0.4);
+    color: white;
+    padding: 8px 14px;
+    border-radius: 18px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    z-index: 11;
+  }
+  .reset-btn:active { transform: scale(0.95); }
+
+  /* Hint toast */
+  .hint {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(10px);
+    color: white;
+    padding: 20px 26px;
+    border-radius: 16px;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    z-index: 20;
+    border: 1px solid rgba(99, 102, 241, 0.5);
+    pointer-events: none;
+    transition: opacity 0.5s;
+  }
+  .hint.hide { opacity: 0; }
+  .hint b { color: #93c5fd; }
+
+  @media (max-width: 400px) {
+    .btn { width: 60px; height: 60px; font-size: 26px; }
+    .btn.gas { width: 80px; height: 80px; font-size: 32px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="game">
+  <canvas id="canvas"></canvas>
+</div>
+
+<!-- Speed display -->
+<div class="speed-badge">
+  <span class="icon">⚡</span>
+  <span class="num" id="speedNum">0</span>
+  <span class="unit">mph</span>
+</div>
+
+<!-- Reset -->
+<button class="reset-btn" onpointerdown="resetCar()">🔄 Reset</button>
+
+<!-- Hint -->
+<div class="hint" id="hint">
+  🚗 <b>Drive the car!</b><br><br>
+  ⛽ <b>Gas</b> = go faster<br>
+  🛑 <b>Brake</b> = slow down<br>
+  ◀️ ▶️ <b>Steer</b> = turn<br><br>
+  Or use <b>arrow keys</b> on computer
+</div>
+
+<!-- Controls -->
+<div class="controls">
+  <div class="steer">
+    <button class="btn steer" id="leftBtn">◀️</button>
+    <button class="btn steer" id="rightBtn">▶️</button>
+  </div>
+  <div class="pedals">
+    <button class="btn gas" id="gasBtn">⛽</button>
+    <button class="btn brake" id="brakeBtn">🛑</button>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   CAR DRIVING GAME
+   Top-down view, smooth car physics, no score - just drive!
+   ============================================================ */
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+// World setup
+const WORLD = { w: 2400, h: 2400 };
+
+// Car state
+let car = {
+  x: WORLD.w / 2,
+  y: WORLD.h / 2,
+  angle: -Math.PI / 2, // facing up
+  speed: 0,
+  maxSpeed: 8,
+  accel: 0.18,
+  brakePower: 0.25,
+  friction: 0.04,
+  turnSpeed: 0.05,
+  width: 28,
+  length: 50
+};
+
+// Input state
+let input = { gas: false, brake: false, left: false, right: false };
+
+// Camera
+let camera = { x: 0, y: 0 };
+
+// Obstacles (trees) and decorations
+let trees = [];
+let cones = [];
+let roads = [];
+
+// Particles (skid marks, dust)
+let particles = [];
+
+/* ---------- Resize ---------- */
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => setTimeout(resize, 200));
+resize();
+
+/* ---------- Setup world ---------- */
+function setupWorld() {
+  trees = [];
+  cones = [];
+  roads = [];
+  // Random trees
+  for (let i = 0; i < 80; i++) {
+    let tx, ty, ok = false, tries = 0;
+    while (!ok && tries < 50) {
+      tx = 100 + Math.random() * (WORLD.w - 200);
+      ty = 100 + Math.random() * (WORLD.h - 200);
+      // Keep away from car start
+      ok = Math.hypot(tx - car.x, ty - car.y) > 200;
+      // Keep away from road centers
+      if (ok) {
+        for (const r of roads) {
+          if (Math.abs(tx - r.x) < 80 || Math.abs(ty - r.y) < 80) { ok = false; break; }
+        }
+      }
+      tries++;
+    }
+    if (ok) trees.push({ x: tx, y: ty, r: 20 + Math.random() * 18 });
+  }
+  // Cones
+  for (let i = 0; i < 30; i++) {
+    cones.push({
+      x: 100 + Math.random() * (WORLD.w - 200),
+      y: 100 + Math.random() * (WORLD.h - 200),
+      hit: false
+    });
+  }
+  // Roads (horizontal and vertical strips)
+  roads.push({ x: WORLD.w / 2, y: 0, w: 100, h: WORLD.h, type: 'v' });
+  roads.push({ x: 0, y: WORLD.h / 2, w: WORLD.w, h: 100, type: 'h' });
+  roads.push({ x: WORLD.w / 4, y: 0, w: 80, h: WORLD.h, type: 'v' });
+  roads.push({ x: WORLD.w * 3 / 4, y: 0, w: 80, h: WORLD.h, type: 'v' });
+  roads.push({ x: 0, y: WORLD.h / 4, w: WORLD.w, h: 80, type: 'h' });
+  roads.push({ x: 0, y: WORLD.h * 3 / 4, w: WORLD.w, h: 80, type: 'h' });
+}
+setupWorld();
+
+/* ---------- Reset car ---------- */
+function resetCar() {
+  car.x = WORLD.w / 2;
+  car.y = WORLD.h / 2;
+  car.angle = -Math.PI / 2;
+  car.speed = 0;
+  particles = [];
+  // Reset cones
+  for (const c of cones) c.hit = false;
+}
+
+/* ---------- Update physics ---------- */
+function update() {
+  // Acceleration
+  if (input.gas) {
+    car.speed += car.accel;
+  } else if (input.brake) {
+    if (car.speed > 0) car.speed -= car.brakePower;
+    else car.speed -= car.accel * 0.6; // reverse
+  } else {
+    // Friction
+    if (car.speed > 0) car.speed = Math.max(0, car.speed - car.friction);
+    else if (car.speed < 0) car.speed = Math.min(0, car.speed + car.friction);
+  }
+  // Clamp speed
+  if (car.speed > car.maxSpeed) car.speed = car.maxSpeed;
+  if (car.speed < -car.maxSpeed * 0.5) car.speed = -car.maxSpeed * 0.5;
+
+  // Steering (only when moving)
+  if (Math.abs(car.speed) > 0.05) {
+    const turnFactor = car.speed / car.maxSpeed;
+    if (input.left) car.angle -= car.turnSpeed * turnFactor * (car.speed > 0 ? 1 : -1);
+    if (input.right) car.angle += car.turnSpeed * turnFactor * (car.speed > 0 ? 1 : -1);
+  }
+
+  // Move
+  const newX = car.x + Math.cos(car.angle) * car.speed;
+  const newY = car.y + Math.sin(car.angle) * car.speed;
+
+  // Tree collision
+  let collided = false;
+  for (const t of trees) {
+    if (Math.hypot(newX - t.x, newY - t.y) < t.r + 20) {
+      collided = true;
+      break;
+    }
+  }
+  // World bounds
+  if (newX < 30 || newX > WORLD.w - 30 || newY < 30 || newY > WORLD.h - 30) {
+    collided = true;
+  }
+
+  if (collided) {
+    car.speed = -car.speed * 0.3; // bounce back
+    // Skid particles
+    for (let i = 0; i < 5; i++) {
+      particles.push({
+        x: car.x, y: car.y,
+        vx: (Math.random() - 0.5) * 4,
+        vy: (Math.random() - 0.5) * 4,
+        life: 30,
+        type: 'dust'
+      });
+    }
+  } else {
+    car.x = newX;
+    car.y = newY;
+  }
+
+  // Cone collection (drive over them)
+  for (const c of cones) {
+    if (!c.hit && Math.hypot(car.x - c.x, car.y - c.y) < 25) {
+      c.hit = true;
+      // Sparkle particles
+      for (let i = 0; i < 8; i++) {
+        particles.push({
+          x: c.x, y: c.y,
+          vx: (Math.random() - 0.5) * 6,
+          vy: (Math.random() - 0.5) * 6,
+          life: 40,
+          type: 'spark'
+        });
+      }
+    }
+  }
+
+  // Update particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  // Camera follows car
+  camera.x = car.x - canvas.width / 2;
+  camera.y = car.y - canvas.height / 2;
+  // Smooth camera
+  camera.x = Math.max(0, Math.min(WORLD.w - canvas.width, camera.x));
+  camera.y = Math.max(0, Math.min(WORLD.h - canvas.height, camera.y));
+
+  // Update speed display
+  document.getElementById('speedNum').textContent = Math.round(Math.abs(car.speed) * 12);
+}
+
+/* ---------- Draw ---------- */
+function draw() {
+  ctx.fillStyle = '#14532d';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.save();
+  ctx.translate(-camera.x, -camera.y);
+
+  // Draw grass pattern
+  const gridSize = 80;
+  const startX = Math.floor(camera.x / gridSize) * gridSize;
+  const startY = Math.floor(camera.y / gridSize) * gridSize;
+  for (let x = startX; x < camera.x + canvas.width + gridSize; x += gridSize) {
+    for (let y = startY; y < camera.y + canvas.height + gridSize; y += gridSize) {
+      if ((Math.floor(x / gridSize) + Math.floor(y / gridSize)) % 2 === 0) {
+        ctx.fillStyle = '#166534';
+      } else {
+        ctx.fillStyle = '#14532d';
+      }
+      ctx.fillRect(x, y, gridSize, gridSize);
+    }
+  }
+
+  // Draw roads
+  for (const r of roads) {
+    ctx.fillStyle = '#374151';
+    ctx.fillRect(r.x, r.y, r.w, r.h);
+    // Road markings (dashed yellow line in middle)
+    ctx.fillStyle = '#facc15';
+    if (r.type === 'v') {
+      for (let y = 0; y < r.h; y += 40) {
+        ctx.fillRect(r.x + r.w / 2 - 2, y, 4, 20);
+      }
+    } else {
+      for (let x = 0; x < r.w; x += 40) {
+        ctx.fillRect(x, r.y + r.h / 2 - 2, 20, 4);
+      }
+    }
+  }
+
+  // Draw cones
+  for (const c of cones) {
+    if (c.hit) continue;
+    // Cone shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.ellipse(c.x + 2, c.y + 3, 12, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Cone (orange triangle)
+    ctx.fillStyle = '#f97316';
+    ctx.beginPath();
+    ctx.moveTo(c.x, c.y - 14);
+    ctx.lineTo(c.x - 10, c.y + 8);
+    ctx.lineTo(c.x + 10, c.y + 8);
+    ctx.closePath();
+    ctx.fill();
+    // White stripe
+    ctx.fillStyle = 'white';
+    ctx.fillRect(c.x - 8, c.y + 2, 16, 3);
+  }
+
+  // Draw trees
+  for (const t of trees) {
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.ellipse(t.x + 6, t.y + 8, t.r, t.r * 0.7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Trunk
+    ctx.fillStyle = '#78350f';
+    ctx.fillRect(t.x - 5, t.y - 5, 10, 18);
+    // Leaves (circle)
+    ctx.fillStyle = '#15803d';
+    ctx.beginPath();
+    ctx.arc(t.x, t.y - 10, t.r, 0, Math.PI * 2);
+    ctx.fill();
+    // Highlight
+    ctx.fillStyle = '#16a34a';
+    ctx.beginPath();
+    ctx.arc(t.x - t.r * 0.3, t.y - t.r * 0.4, t.r * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Draw particles
+  for (const p of particles) {
+    const alpha = p.life / 40;
+    if (p.type === 'dust') {
+      ctx.fillStyle = `rgba(120, 100, 60, ${alpha})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (p.type === 'spark') {
+      ctx.fillStyle = `rgba(250, 204, 21, ${alpha})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Draw car
+  drawCar();
+
+  ctx.restore();
+
+  // Minimap (top-left)
+  drawMinimap();
+}
+
+function drawCar() {
+  ctx.save();
+  ctx.translate(car.x, car.y);
+  ctx.rotate(car.angle + Math.PI / 2); // car art faces "up" by default
+
+  // Car shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(-car.width / 2 + 4, -car.length / 2 + 5, car.width, car.length);
+
+  // Car body (red)
+  const grad = ctx.createLinearGradient(-car.width / 2, 0, car.width / 2, 0);
+  grad.addColorStop(0, '#b91c1c');
+  grad.addColorStop(0.5, '#ef4444');
+  grad.addColorStop(1, '#7f1d1d');
+  ctx.fillStyle = grad;
+  // Rounded rectangle
+  roundRect(-car.width / 2, -car.length / 2, car.width, car.length, 8);
+  ctx.fill();
+
+  // Windshield (front - top of car art)
+  ctx.fillStyle = '#1e293b';
+  roundRect(-car.width / 2 + 4, -car.length / 2 + 6, car.width - 8, 14, 4);
+  ctx.fill();
+  // Windshield reflection
+  ctx.fillStyle = 'rgba(147, 197, 253, 0.4)';
+  roundRect(-car.width / 2 + 5, -car.length / 2 + 7, (car.width - 10) / 2, 6, 2);
+  ctx.fill();
+
+  // Rear window
+  ctx.fillStyle = '#1e293b';
+  roundRect(-car.width / 2 + 4, car.length / 2 - 16, car.width - 8, 10, 3);
+  ctx.fill();
+
+  // Headlights (front)
+  ctx.fillStyle = '#fde68a';
+  ctx.fillRect(-car.width / 2 + 2, -car.length / 2 + 2, 5, 4);
+  ctx.fillRect(car.width / 2 - 7, -car.length / 2 + 2, 5, 4);
+
+  // Taillights (back, red)
+  ctx.fillStyle = car.brake ? '#fca5a5' : '#7f1d1d';
+  ctx.fillRect(-car.width / 2 + 2, car.length / 2 - 6, 5, 4);
+  ctx.fillRect(car.width / 2 - 7, car.length / 2 - 6, 5, 4);
+
+  // Wheels
+  ctx.fillStyle = '#0f172a';
+  // Front wheels
+  ctx.fillRect(-car.width / 2 - 3, -car.length / 2 + 8, 6, 10);
+  ctx.fillRect(car.width / 2 - 3, -car.length / 2 + 8, 6, 10);
+  // Back wheels
+  ctx.fillRect(-car.width / 2 - 3, car.length / 2 - 18, 6, 10);
+  ctx.fillRect(car.width / 2 - 3, car.length / 2 - 18, 6, 10);
+
+  ctx.restore();
+}
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function drawMinimap() {
+  const mw = 100, mh = 100;
+  const mx = canvas.width - mw - 20;
+  const my = canvas.height - mh - 120;
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+  ctx.fillRect(mx, my, mw, mh);
+  ctx.strokeStyle = 'rgba(99, 102, 241, 0.5)';
+  ctx.strokeRect(mx, my, mw, mh);
+  // Trees
+  ctx.fillStyle = '#22c55e';
+  for (const t of trees) {
+    ctx.fillRect(mx + (t.x / WORLD.w) * mw - 1, my + (t.y / WORLD.h) * mh - 1, 2, 2);
+  }
+  // Cones
+  ctx.fillStyle = '#f97316';
+  for (const c of cones) {
+    if (!c.hit) ctx.fillRect(mx + (c.x / WORLD.w) * mw - 1, my + (c.y / WORLD.h) * mh - 1, 2, 2);
+  }
+  // Car (red dot)
+  ctx.fillStyle = '#ef4444';
+  ctx.beginPath();
+  ctx.arc(mx + (car.x / WORLD.w) * mw, my + (car.y / WORLD.h) * mh, 3, 0, Math.PI * 2);
+  ctx.fill();
+  // Label
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 10px sans-serif';
+  ctx.fillText('MAP', mx + 5, my + 12);
+}
+
+/* ---------- Game loop ---------- */
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+
+/* ---------- Input handlers ---------- */
+function bindButton(id, key) {
+  const btn = document.getElementById(id);
+  const press = (e) => { e.preventDefault(); input[key] = true; btn.classList.add('pressed'); };
+  const release = (e) => { e.preventDefault(); input[key] = false; btn.classList.remove('pressed'); };
+  btn.addEventListener('pointerdown', press);
+  btn.addEventListener('pointerup', release);
+  btn.addEventListener('pointerleave', release);
+  btn.addEventListener('pointercancel', release);
+}
+bindButton('gasBtn', 'gas');
+bindButton('brakeBtn', 'brake');
+bindButton('leftBtn', 'left');
+bindButton('rightBtn', 'right');
+
+// Keyboard
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowUp') { input.gas = true; e.preventDefault(); }
+  else if (e.key === 'ArrowDown') { input.brake = true; e.preventDefault(); }
+  else if (e.key === 'ArrowLeft') { input.left = true; e.preventDefault(); }
+  else if (e.key === 'ArrowRight') { input.right = true; e.preventDefault(); }
+  else if (e.key === 'r' || e.key === 'R') { resetCar(); }
+  // Hide hint on first key press
+  document.getElementById('hint').classList.add('hide');
+});
+document.addEventListener('keyup', (e) => {
+  if (e.key === 'ArrowUp') input.gas = false;
+  else if (e.key === 'ArrowDown') input.brake = false;
+  else if (e.key === 'ArrowLeft') input.left = false;
+  else if (e.key === 'ArrowRight') input.right = false;
+});
+
+// Hide hint after 5 seconds
+setTimeout(() => document.getElementById('hint').classList.add('hide'), 5000);
+
+// Prevent scrolling/zooming on iOS Safari
+document.addEventListener('gesturestart', (e) => e.preventDefault());
+document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+</script>
+
+</body>
+</html>
