@@ -908,47 +908,64 @@ function update() {
   // Infinite world: move ground + objects + roads with car if too far
   const WRAP_DIST = 500;
   if (Math.abs(carState.x) > WRAP_DIST || Math.abs(carState.z) > WRAP_DIST) {
-    // Move ground
-    ground.position.x += Math.round(carState.x / WRAP_DIST) * WRAP_DIST * 2;
-    ground.position.z += Math.round(carState.z / WRAP_DIST) * WRAP_DIST * 2;
-    // Move roads
+    // Car has driven too far from origin. Recenter everything by
+    // shifting the world back by the car's position offset, and
+    // reset the car to (0, 0). This keeps roads/ground NEAR the car
+    // instead of moving them away (which was the previous bug).
+    const dx = carState.x;
+    const dz = carState.z;
+
+    // Reset car to origin
+    carState.x = 0;
+    carState.z = 0;
+
+    // Move ground to stay under the car
+    ground.position.x -= dx;
+    ground.position.z -= dz;
+
+    // Move roads to stay near the car
     roads.forEach(r => {
-      r.mesh.position.x += Math.round(carState.x / WRAP_DIST) * WRAP_DIST * 2;
-      r.mesh.position.z += Math.round(carState.z / WRAP_DIST) * WRAP_DIST * 2;
+      r.mesh.position.x -= dx;
+      r.mesh.position.z -= dz;
     });
-    // Reposition objects that are too far
+
+    // Move trees + respawn any that are now too far from car
     trees.forEach(t => {
-      const dx = t.position.x - carState.x;
-      const dz = t.position.z - carState.z;
-      if (Math.abs(dx) > 300 || Math.abs(dz) > 300) {
+      t.position.x -= dx;
+      t.position.z -= dz;
+      if (Math.abs(t.position.x) > 400 || Math.abs(t.position.z) > 400) {
         const angle = Math.random() * Math.PI * 2;
-        const dist = 150 + Math.random() * 200;
-        t.position.x = carState.x + Math.cos(angle) * dist;
-        t.position.z = carState.z + Math.sin(angle) * dist;
+        const dist = 200 + Math.random() * 300;
+        t.position.x = Math.cos(angle) * dist;
+        t.position.z = Math.sin(angle) * dist;
       }
     });
+
+    // Move cones + respawn any too far
     cones.forEach(c => {
-      const dx = c.mesh.position.x - carState.x;
-      const dz = c.mesh.position.z - carState.z;
-      if (Math.abs(dx) > 300 || Math.abs(dz) > 300) {
+      c.mesh.position.x -= dx;
+      c.mesh.position.z -= dz;
+      if (Math.abs(c.mesh.position.x) > 400 || Math.abs(c.mesh.position.z) > 400) {
         const angle = Math.random() * Math.PI * 2;
-        const dist = 100 + Math.random() * 200;
-        c.mesh.position.x = carState.x + Math.cos(angle) * dist;
-        c.mesh.position.z = carState.z + Math.sin(angle) * dist;
+        const dist = 150 + Math.random() * 300;
+        c.mesh.position.x = Math.cos(angle) * dist;
+        c.mesh.position.z = Math.sin(angle) * dist;
         c.x = c.mesh.position.x;
         c.z = c.mesh.position.z;
         c.hit = false;
         c.mesh.visible = true;
       }
     });
+
+    // Move buildings + respawn any too far
     buildings.forEach(b => {
-      const dx = b.position.x - carState.x;
-      const dz = b.position.z - carState.z;
-      if (Math.abs(dx) > 350 || Math.abs(dz) > 350) {
+      b.position.x -= dx;
+      b.position.z -= dz;
+      if (Math.abs(b.position.x) > 500 || Math.abs(b.position.z) > 500) {
         const angle = Math.random() * Math.PI * 2;
-        const dist = 200 + Math.random() * 200;
-        b.position.x = carState.x + Math.cos(angle) * dist;
-        b.position.z = carState.z + Math.sin(angle) * dist;
+        const dist = 250 + Math.random() * 300;
+        b.position.x = Math.cos(angle) * dist;
+        b.position.z = Math.sin(angle) * dist;
       }
     });
   }
