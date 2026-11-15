@@ -420,8 +420,8 @@ scene.add(ground);
 
 // ============== Road grid (BRIGHT, WIDE, DENSE - always visible) ==============
 const roads = [];
-const ROAD_SPACING = 40; // DENSER grid: road every 40 units (was 60)
-const ROAD_WIDTH = 50;   // MUCH WIDER roads (was 32)
+const ROAD_SPACING = 40; // DENSER grid: road every 40 units
+const ROAD_WIDTH = 22;   // Narrower roads - leaves grass between them for trees/buildings
 
 // Bright contrasting colors - road is light gray (clearly different
 // from green grass), yellow line is bright yellow
@@ -619,6 +619,21 @@ function makeBuilding(x, z) {
   buildings.push(b);
 }
 
+// Check if a position is on (or too close to) a road.
+// Roads are at multiples of ROAD_SPACING, with width ROAD_WIDTH.
+// We add a small buffer so trees/buildings aren't right at road edges.
+function isOnRoad(x, z, buffer = 4) {
+  const halfWidth = ROAD_WIDTH / 2 + buffer;
+  // Distance to nearest vertical road (multiples of ROAD_SPACING on X axis)
+  const modX = ((x % ROAD_SPACING) + ROAD_SPACING) % ROAD_SPACING;
+  const distX = Math.min(modX, ROAD_SPACING - modX);
+  // Distance to nearest horizontal road (multiples of ROAD_SPACING on Z axis)
+  const modZ = ((z % ROAD_SPACING) + ROAD_SPACING) % ROAD_SPACING;
+  const distZ = Math.min(modZ, ROAD_SPACING - modZ);
+  // On a road if too close to either a vertical or horizontal road
+  return distX < halfWidth || distZ < halfWidth;
+}
+
 // Scatter initial objects
 function scatterObjects() {
   // Clear
@@ -630,30 +645,39 @@ function scatterObjects() {
   buildings.length = 0;
 
   // Place objects in a large area around origin
+  // IMPORTANT: keep trees and buildings OFF the roads!
   for (let i = 0; i < 60; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const dist = 40 + Math.random() * 400;
-    const x = Math.cos(angle) * dist;
-    const z = Math.sin(angle) * dist;
-    // Keep away from roads
-    if (Math.abs(x) < 15 || Math.abs(z) < 15) continue;
-    makeTree(x, z);
+    let x, z, tries = 0;
+    do {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 40 + Math.random() * 400;
+      x = Math.cos(angle) * dist;
+      z = Math.sin(angle) * dist;
+      tries++;
+    } while (isOnRoad(x, z, 5) && tries < 30); // retry until off-road
+    if (tries < 30) makeTree(x, z);
   }
   for (let i = 0; i < 40; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const dist = 30 + Math.random() * 350;
-    const x = Math.cos(angle) * dist;
-    const z = Math.sin(angle) * dist;
-    if (Math.abs(x) < 15 || Math.abs(z) < 15) continue;
-    makeCone(x, z);
+    let x, z, tries = 0;
+    do {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 30 + Math.random() * 350;
+      x = Math.cos(angle) * dist;
+      z = Math.sin(angle) * dist;
+      tries++;
+    } while (isOnRoad(x, z, 3) && tries < 30);
+    if (tries < 30) makeCone(x, z);
   }
   for (let i = 0; i < 25; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const dist = 80 + Math.random() * 400;
-    const x = Math.cos(angle) * dist;
-    const z = Math.sin(angle) * dist;
-    if (Math.abs(x) < 20 || Math.abs(z) < 20) continue;
-    makeBuilding(x, z);
+    let x, z, tries = 0;
+    do {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 80 + Math.random() * 400;
+      x = Math.cos(angle) * dist;
+      z = Math.sin(angle) * dist;
+      tries++;
+    } while (isOnRoad(x, z, 8) && tries < 30); // bigger buffer for buildings
+    if (tries < 30) makeBuilding(x, z);
   }
 }
 scatterObjects();
@@ -959,18 +983,26 @@ function update() {
     });
 
     // Move trees + respawn any that are now too far from car
+    // When respawning, keep OFF roads so they don't block driving
     trees.forEach(t => {
       t.position.x -= dx;
       t.position.z -= dz;
       if (Math.abs(t.position.x) > 400 || Math.abs(t.position.z) > 400) {
-        const angle = Math.random() * Math.PI * 2;
-        const dist = 200 + Math.random() * 300;
-        t.position.x = Math.cos(angle) * dist;
-        t.position.z = Math.sin(angle) * dist;
+        let nx, nz, tries = 0;
+        do {
+          const angle = Math.random() * Math.PI * 2;
+          const dist = 200 + Math.random() * 300;
+          nx = Math.cos(angle) * dist;
+          nz = Math.sin(angle) * dist;
+          tries++;
+        } while (isOnRoad(nx, nz, 5) && tries < 20);
+        t.position.x = nx;
+        t.position.z = nz;
       }
     });
 
-    // Move cones + respawn any too far
+    // Move cones + respawn any too far (cones CAN be on roads - they're
+    // traffic cones meant to be driven over!)
     cones.forEach(c => {
       c.mesh.position.x -= dx;
       c.mesh.position.z -= dz;
@@ -987,14 +1019,21 @@ function update() {
     });
 
     // Move buildings + respawn any too far
+    // Keep OFF roads so they don't block driving
     buildings.forEach(b => {
       b.position.x -= dx;
       b.position.z -= dz;
       if (Math.abs(b.position.x) > 500 || Math.abs(b.position.z) > 500) {
-        const angle = Math.random() * Math.PI * 2;
-        const dist = 250 + Math.random() * 300;
-        b.position.x = Math.cos(angle) * dist;
-        b.position.z = Math.sin(angle) * dist;
+        let nx, nz, tries = 0;
+        do {
+          const angle = Math.random() * Math.PI * 2;
+          const dist = 250 + Math.random() * 300;
+          nx = Math.cos(angle) * dist;
+          nz = Math.sin(angle) * dist;
+          tries++;
+        } while (isOnRoad(nx, nz, 8) && tries < 20);
+        b.position.x = nx;
+        b.position.z = nz;
       }
     });
   }
