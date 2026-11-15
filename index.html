@@ -688,11 +688,11 @@ const carState = {
   angle: 0, // facing -Z (forward)
   speed: 0,
   steer: 0, // -1 to 1
-  maxSpeed: 1.6,
-  accel: 0.025,
-  brakePower: 0.04,
-  reverseAccel: 0.015,
-  friction: 0.008,
+  maxSpeed: 6.0,       // 4x faster - top speed now shows 300 mph
+  accel: 0.1,          // 4x faster acceleration to match
+  brakePower: 0.15,    // stronger brakes to stop the faster car
+  reverseAccel: 0.06,
+  friction: 0.03,
   turnSpeed: 0.025,
 };
 
