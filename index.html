@@ -418,79 +418,48 @@ ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// ============== Road grid (denser, wider, always visible) ==============
+// ============== Road grid (BRIGHT, WIDE, always visible) ==============
 const roads = [];
-const ROAD_SPACING = 80; // road every 80 units
-const ROAD_WIDTH = 18; // wider roads (was 14-20)
+const ROAD_SPACING = 60; // denser grid: road every 60 units
+const ROAD_WIDTH = 32;   // WIDER roads (was 18)
 
-// Pre-built road textures (one for vertical roads, one for horizontal)
-function makeRoadTexture(isVertical) {
-  const c = document.createElement('canvas');
-  c.width = 64;
-  c.height = 64;
-  const ctx = c.getContext('2d');
-  // Dark asphalt
-  ctx.fillStyle = '#2a2a2a';
-  ctx.fillRect(0, 0, 64, 64);
-  // Add subtle gray speckles for texture
-  for (let i = 0; i < 200; i++) {
-    ctx.fillStyle = Math.random() > 0.5 ? '#333333' : '#1f1f1f';
-    ctx.fillRect(Math.random() * 64, Math.random() * 64, 2, 2);
-  }
-  // White dashed center line
-  ctx.fillStyle = '#fbbf24'; // yellow
-  if (isVertical) {
-    // Dashes run along the road (Y axis = along length)
-    for (let y = 0; y < 64; y += 32) {
-      ctx.fillRect(30, y, 4, 20);
-    }
-    // White edge lines on sides
-    ctx.fillStyle = '#e5e7eb';
-    ctx.fillRect(6, 0, 2, 64);
-    ctx.fillRect(56, 0, 2, 64);
-  } else {
-    // Horizontal road - dashes run along X axis
-    for (let x = 0; x < 64; x += 32) {
-      ctx.fillRect(x, 30, 20, 4);
-    }
-    // White edge lines top/bottom
-    ctx.fillStyle = '#e5e7eb';
-    ctx.fillRect(0, 6, 64, 2);
-    ctx.fillRect(0, 56, 64, 2);
-  }
-  return new THREE.CanvasTexture(c);
-}
-
-const vRoadTex = makeRoadTexture(true);
-vRoadTex.wrapS = vRoadTex.wrapT = THREE.RepeatWrapping;
-const hRoadTex = makeRoadTexture(false);
-hRoadTex.wrapS = hRoadTex.wrapT = THREE.RepeatWrapping;
+// Simple solid-color materials (no texture = guaranteed visible)
+const roadMatV = new THREE.MeshBasicMaterial({ color: 0x4a4a4a }); // medium gray
+const roadMatH = new THREE.MeshBasicMaterial({ color: 0x4a4a4a });
+const lineMatV = new THREE.MeshBasicMaterial({ color: 0xfbbf24 }); // bright yellow
+const lineMatH = new THREE.MeshBasicMaterial({ color: 0xfbbf24 });
 
 function makeRoad(x, z, w, h, isVertical) {
+  // Main road surface
   const geo = new THREE.PlaneGeometry(w, h);
-  const tex = isVertical ? vRoadTex.clone() : hRoadTex.clone();
-  tex.needsUpdate = true;
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  // Repeat texture along the length of the road
-  if (isVertical) {
-    tex.repeat.set(1, h / 20);
-  } else {
-    tex.repeat.set(w / 20, 1);
-  }
-  // Use MeshBasicMaterial so roads are ALWAYS visible regardless
-  // of lighting/camera angle. MeshLambertMaterial can be too dark.
-  const mat = new THREE.MeshBasicMaterial({ map: tex });
+  const mat = isVertical ? roadMatV : roadMatH;
   const mesh = new THREE.Mesh(geo, mat);
   mesh.rotation.x = -Math.PI / 2;
-  // Y=0.3 to avoid z-fighting with ground at y=0 (higher than before)
   mesh.position.set(x, 0.3, z);
-  mesh.receiveShadow = true;
   scene.add(mesh);
   roads.push({ mesh, baseX: x, baseZ: z, w, h, isVertical });
+
+  // Yellow center line (a thin strip ON TOP of the road)
+  if (isVertical) {
+    // Vertical road: line runs along Z axis
+    const lineGeo = new THREE.PlaneGeometry(2, h);
+    const lineMesh = new THREE.Mesh(lineGeo, lineMatV);
+    lineMesh.rotation.x = -Math.PI / 2;
+    lineMesh.position.set(x, 0.35, z);
+    scene.add(lineMesh);
+    roads.push({ mesh: lineMesh, baseX: x, baseZ: z, w: 2, h, isVertical: true });
+  } else {
+    // Horizontal road: line runs along X axis
+    const lineGeo = new THREE.PlaneGeometry(w, 2);
+    const lineMesh = new THREE.Mesh(lineGeo, lineMatH);
+    lineMesh.rotation.x = -Math.PI / 2;
+    lineMesh.position.set(x, 0.35, z);
+    scene.add(lineMesh);
+    roads.push({ mesh: lineMesh, baseX: x, baseZ: z, w, h: 2, isVertical: false });
+  }
 }
 
 // Build a road grid: every ROAD_SPACING units in both X and Z
-// Cover a large area (±1000) so user always sees roads nearby
 for (let x = -800; x <= 800; x += ROAD_SPACING) {
   makeRoad(x, 0, ROAD_WIDTH, 2000, true);
 }
