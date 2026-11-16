@@ -393,30 +393,35 @@ scene.add(sun);
 const hemi = new THREE.HemisphereLight(0x87ceeb, 0x3a5f0b, 0.4);
 scene.add(hemi);
 
-// ============== Ground (infinite tiled) ==============
+// ============== Ground (solid bright green - guaranteed visible) ==============
 const GROUND_SIZE = 2000;
 const groundGeo = new THREE.PlaneGeometry(GROUND_SIZE, GROUND_SIZE);
-const groundCanvas = document.createElement('canvas');
-groundCanvas.width = 256;
-groundCanvas.height = 256;
-const gctx = groundCanvas.getContext('2d');
-gctx.fillStyle = '#3a7d3a';
-gctx.fillRect(0, 0, 256, 256);
-// Grass texture pattern
-for (let i = 0; i < 600; i++) {
-  gctx.fillStyle = Math.random() > 0.5 ? '#2d6b2d' : '#4a8a4a';
-  const x = Math.random() * 256;
-  const y = Math.random() * 256;
-  gctx.fillRect(x, y, 3, 3);
-}
-const groundTex = new THREE.CanvasTexture(groundCanvas);
-groundTex.wrapS = groundTex.wrapT = THREE.RepeatWrapping;
-groundTex.repeat.set(100, 100);
-const groundMat = new THREE.MeshLambertMaterial({ map: groundTex });
+// Use SOLID COLOR MeshBasicMaterial - no texture to load, no lighting needed
+// This guarantees the ground is ALWAYS visible (previous texture sometimes
+// failed to load and the ground became invisible)
+const groundMat = new THREE.MeshBasicMaterial({ color: 0x3a7d3a }); // solid green
 const ground = new THREE.Mesh(groundGeo, groundMat);
 ground.rotation.x = -Math.PI / 2;
-ground.receiveShadow = true;
+ground.position.y = 0;
 scene.add(ground);
+
+// Add a subtle checker pattern using a second plane on top (also solid colors)
+// This gives some visual variety without relying on texture loading
+const checkerGroup = new THREE.Group();
+const checkerSize = 100;
+const checkerGeo = new THREE.PlaneGeometry(checkerSize, checkerSize);
+const checkerMatA = new THREE.MeshBasicMaterial({ color: 0x3a7d3a }); // darker green
+const checkerMatB = new THREE.MeshBasicMaterial({ color: 0x4a8a4a }); // lighter green
+for (let cx = -1000; cx <= 1000; cx += checkerSize) {
+  for (let cz = -1000; cz <= 1000; cz += checkerSize) {
+    const mat = ((Math.floor(cx / checkerSize) + Math.floor(cz / checkerSize)) % 2 === 0) ? checkerMatA : checkerMatB;
+    const tile = new THREE.Mesh(checkerGeo, mat);
+    tile.rotation.x = -Math.PI / 2;
+    tile.position.set(cx, 0.05, cz);
+    checkerGroup.add(tile);
+  }
+}
+scene.add(checkerGroup);
 
 // ============== Road grid (BRIGHT, WIDE, DENSE - always visible) ==============
 const roads = [];
@@ -688,11 +693,11 @@ const carState = {
   angle: 0, // facing -Z (forward)
   speed: 0,
   steer: 0, // -1 to 1
-  maxSpeed: 6.0,       // 4x faster - top speed now shows 300 mph
-  accel: 0.1,          // 4x faster acceleration to match
-  brakePower: 0.15,    // stronger brakes to stop the faster car
-  reverseAccel: 0.06,
-  friction: 0.03,
+  maxSpeed: 2.0,       // reasonable top speed (100 mph display)
+  accel: 0.04,
+  brakePower: 0.06,
+  reverseAccel: 0.025,
+  friction: 0.015,
   turnSpeed: 0.025,
 };
 
