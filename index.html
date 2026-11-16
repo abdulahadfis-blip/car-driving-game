@@ -546,8 +546,11 @@
     </div>
 
     <div class="garage-section">
-      <h3>Choose your car</h3>
-      <div class="car-grid" id="carGrid"></div>
+      <h3>Choose your car <span class="free-badge">80+ CARS</span></h3>
+      <input type="text" id="carSearch" placeholder="🔍 Search cars (e.g. honda, bmw, mustang, supra)..."
+             style="width: 100%; padding: 10px 14px; border-radius: 10px; background: #0f172a; border: 2px solid #334155; color: white; font-size: 14px; margin-bottom: 12px; outline: none;"
+             oninput="buildGarageUI()">
+      <div class="car-grid" id="carGrid" style="max-height: 280px; overflow-y: auto; padding-right: 4px;"></div>
     </div>
 
     <div class="garage-section">
@@ -1358,14 +1361,134 @@ setTimeout(() => document.getElementById('hint').classList.add('hide'), 6000);
    GARAGE: Car selector + tuning (all FREE!)
    ============================================================ */
 
-// Car types (each has different stats and shape)
+// Car types - 80+ REAL CARS from major brands (Honda, BMW, Toyota, etc.)
+// All FREE - no coins needed!
 const CAR_TYPES = [
-  { id: 'sports', name: 'Sports Car', color: 0xdc2626, maxSpeed: 2.5, accel: 0.05, brake: 0.07, length: 5, width: 3, cabinColor: 0x1e3a8a, desc: 'Fast & nimble' },
-  { id: 'truck', name: 'Truck', color: 0x3b82f6, maxSpeed: 1.8, accel: 0.035, brake: 0.055, length: 7, width: 4, cabinColor: 0x1e3a8a, desc: 'Big & strong' },
-  { id: 'taxi', name: 'Taxi', color: 0xfbbf24, maxSpeed: 2.0, accel: 0.045, brake: 0.065, length: 5, width: 3, cabinColor: 0x1e3a8a, desc: 'City cruiser' },
-  { id: 'suv', name: 'SUV', color: 0x10b981, maxSpeed: 2.0, accel: 0.04, brake: 0.06, length: 6, width: 3.5, cabinColor: 0x1e3a8a, desc: 'All-terrain' },
-  { id: 'race', name: 'Race Car', color: 0x7c3aed, maxSpeed: 3.0, accel: 0.06, brake: 0.08, length: 5, width: 2.8, cabinColor: 0x000000, desc: 'Top speed monster' },
-  { id: 'police', name: 'Police', color: 0x1e293b, maxSpeed: 2.6, accel: 0.055, brake: 0.075, length: 5.5, width: 3, cabinColor: 0xffffff, desc: 'Lights & sirens' },
+  // ===== HONDA (10 cars) =====
+  { id: 'honda-passo', name: 'Honda Passo', color: 0xfbbf24, maxSpeed: 1.8, accel: 0.04, brake: 0.06, length: 3.6, width: 1.7, cabinColor: 0x1e3a8a, desc: 'Compact city car' },
+  { id: 'honda-civic', name: 'Honda Civic', color: 0xdc2626, maxSpeed: 2.3, accel: 0.05, brake: 0.07, length: 4.6, width: 1.8, cabinColor: 0x1e3a8a, desc: 'Sporty sedan' },
+  { id: 'honda-accord', name: 'Honda Accord', color: 0x1e293b, maxSpeed: 2.4, accel: 0.048, brake: 0.07, length: 4.9, width: 1.9, cabinColor: 0x1e3a8a, desc: 'Family sedan' },
+  { id: 'honda-crv', name: 'Honda CR-V', color: 0x3b82f6, maxSpeed: 2.0, accel: 0.042, brake: 0.065, length: 4.6, width: 1.9, cabinColor: 0x1e3a8a, desc: 'Compact SUV' },
+  { id: 'honda-hrv', name: 'Honda HR-V', color: 0xf97316, maxSpeed: 1.9, accel: 0.04, brake: 0.062, length: 4.3, width: 1.8, cabinColor: 0x1e3a8a, desc: 'Subcompact SUV' },
+  { id: 'honda-odyssey', name: 'Honda Odyssey', color: 0x84cc16, maxSpeed: 1.8, accel: 0.035, brake: 0.058, length: 5.1, width: 2.0, cabinColor: 0x1e3a8a, desc: 'Minivan' },
+  { id: 'honda-fit', name: 'Honda Fit', color: 0x06b6d4, maxSpeed: 1.7, accel: 0.038, brake: 0.06, length: 4.0, width: 1.7, cabinColor: 0x1e3a8a, desc: 'Hatchback' },
+  { id: 'honda-city', name: 'Honda City', color: 0xec4899, maxSpeed: 1.9, accel: 0.042, brake: 0.062, length: 4.5, width: 1.8, cabinColor: 0x1e3a8a, desc: 'Asian sedan' },
+  { id: 'honda-jazz', name: 'Honda Jazz', color: 0xa78bfa, maxSpeed: 1.7, accel: 0.038, brake: 0.06, length: 4.0, width: 1.7, cabinColor: 0x1e3a8a, desc: 'Hatchback' },
+  { id: 'honda-nsx', name: 'Honda NSX', color: 0x7c3aed, maxSpeed: 3.0, accel: 0.065, brake: 0.085, length: 4.5, width: 1.9, cabinColor: 0x000000, desc: 'Supercar' },
+
+  // ===== TOYOTA (10 cars) =====
+  { id: 'toyota-corolla', name: 'Toyota Corolla', color: 0x3b82f6, maxSpeed: 2.0, accel: 0.042, brake: 0.065, length: 4.6, width: 1.8, cabinColor: 0x1e3a8a, desc: 'Best-selling sedan' },
+  { id: 'toyota-camry', name: 'Toyota Camry', color: 0x1e293b, maxSpeed: 2.2, accel: 0.045, brake: 0.068, length: 4.9, width: 1.9, cabinColor: 0x1e3a8a, desc: 'Mid-size sedan' },
+  { id: 'toyota-yaris', name: 'Toyota Yaris', color: 0xfbbf24, maxSpeed: 1.7, accel: 0.038, brake: 0.06, length: 4.1, width: 1.7, cabinColor: 0x1e3a8a, desc: 'Subcompact' },
+  { id: 'toyota-rav4', name: 'Toyota RAV4', color: 0x10b981, maxSpeed: 2.0, accel: 0.042, brake: 0.065, length: 4.6, width: 1.9, cabinColor: 0x1e3a8a, desc: 'Compact SUV' },
+  { id: 'toyota-landcruiser', name: 'Toyota Land Cruiser', color: 0xfef3c7, maxSpeed: 2.1, accel: 0.038, brake: 0.062, length: 5.0, width: 2.0, cabinColor: 0x1e3a8a, desc: 'Off-road SUV' },
+  { id: 'toyota-hilux', name: 'Toyota Hilux', color: 0xf97316, maxSpeed: 1.9, accel: 0.036, brake: 0.06, length: 5.3, width: 1.9, cabinColor: 0x1e3a8a, desc: 'Pickup truck' },
+  { id: 'toyota-prius', name: 'Toyota Prius', color: 0x06b6d4, maxSpeed: 1.8, accel: 0.04, brake: 0.063, length: 4.6, width: 1.8, cabinColor: 0x1e3a8a, desc: 'Hybrid' },
+  { id: 'toyota-supra', name: 'Toyota Supra', color: 0xfbbf24, maxSpeed: 2.8, accel: 0.06, brake: 0.08, length: 4.4, width: 1.9, cabinColor: 0x000000, desc: 'Sports car legend' },
+  { id: 'toyota-prado', name: 'Toyota Prado', color: 0x84cc16, maxSpeed: 1.9, accel: 0.037, brake: 0.06, length: 4.8, width: 1.9, cabinColor: 0x1e3a8a, desc: 'Luxury SUV' },
+  { id: 'toyota-86', name: 'Toyota 86', color: 0xec4899, maxSpeed: 2.4, accel: 0.052, brake: 0.072, length: 4.2, width: 1.8, cabinColor: 0x000000, desc: 'Sports coupe' },
+
+  // ===== BMW (10 cars) =====
+  { id: 'bmw-3', name: 'BMW 3 Series', color: 0x1e293b, maxSpeed: 2.5, accel: 0.055, brake: 0.075, length: 4.7, width: 1.8, cabinColor: 0x1e3a8a, desc: 'Sport sedan' },
+  { id: 'bmw-5', name: 'BMW 5 Series', color: 0x1e293b, maxSpeed: 2.6, accel: 0.058, brake: 0.078, length: 4.9, width: 1.9, cabinColor: 0x1e3a8a, desc: 'Executive sedan' },
+  { id: 'bmw-7', name: 'BMW 7 Series', color: 0x1e293b, maxSpeed: 2.6, accel: 0.06, brake: 0.08, length: 5.1, width: 1.9, cabinColor: 0x1e3a8a, desc: 'Luxury sedan' },
+  { id: 'bmw-x5', name: 'BMW X5', color: 0x1e293b, maxSpeed: 2.3, accel: 0.05, brake: 0.07, length: 4.9, width: 2.0, cabinColor: 0x1e3a8a, desc: 'Luxury SUV' },
+  { id: 'bmw-m3', name: 'BMW M3', color: 0xdc2626, maxSpeed: 2.9, accel: 0.062, brake: 0.082, length: 4.7, width: 1.8, cabinColor: 0x000000, desc: 'Track beast' },
+  { id: 'bmw-m5', name: 'BMW M5', color: 0x3b82f6, maxSpeed: 3.0, accel: 0.065, brake: 0.085, length: 4.9, width: 1.9, cabinColor: 0x000000, desc: 'Super sedan' },
+  { id: 'bmw-x3', name: 'BMW X3', color: 0xfbbf24, maxSpeed: 2.2, accel: 0.048, brake: 0.068, length: 4.7, width: 1.9, cabinColor: 0x1e3a8a, desc: 'Compact SUV' },
+  { id: 'bmw-x7', name: 'BMW X7', color: 0xfef3c7, maxSpeed: 2.2, accel: 0.048, brake: 0.068, length: 5.2, width: 2.0, cabinColor: 0x1e3a8a, desc: 'Full-size SUV' },
+  { id: 'bmw-z4', name: 'BMW Z4', color: 0xf97316, maxSpeed: 2.7, accel: 0.058, brake: 0.078, length: 4.3, width: 1.8, cabinColor: 0x000000, desc: 'Roadster' },
+  { id: 'bmw-i8', name: 'BMW i8', color: 0x06b6d4, maxSpeed: 2.6, accel: 0.06, brake: 0.08, length: 4.6, width: 1.9, cabinColor: 0x000000, desc: 'Hybrid sports' },
+
+  // ===== MERCEDES-BENZ (8 cars) =====
+  { id: 'merc-cclass', name: 'Mercedes C-Class', color: 0x1e293b, maxSpeed: 2.5, accel: 0.055, brake: 0.075, length: 4.7, width: 1.8, cabinColor: 0x1e3a8a, desc: 'Compact luxury' },
+  { id: 'merc-eclass', name: 'Mercedes E-Class', color: 0x1e293b, maxSpeed: 2.6, accel: 0.058, brake: 0.078, length: 4.9, width: 1.9, cabinColor: 0x1e3a8a, desc: 'Executive' },
+  { id: 'merc-sclass', name: 'Mercedes S-Class', color: 0x1e293b, maxSpeed: 2.7, accel: 0.06, brake: 0.08, length: 5.2, width: 1.9, cabinColor: 0x1e3a8a, desc: 'Flagship luxury' },
+  { id: 'merc-gclass', name: 'Mercedes G-Class', color: 0x10b981, maxSpeed: 2.2, accel: 0.048, brake: 0.068, length: 4.8, width: 1.9, cabinColor: 0x1e3a8a, desc: 'Off-road luxury' },
+  { id: 'merc-gla', name: 'Mercedes GLA', color: 0xfbbf24, maxSpeed: 2.1, accel: 0.045, brake: 0.065, length: 4.4, width: 1.8, cabinColor: 0x1e3a8a, desc: 'Subcompact SUV' },
+  { id: 'merc-glc', name: 'Mercedes GLC', color: 0x3b82f6, maxSpeed: 2.2, accel: 0.048, brake: 0.068, length: 4.7, width: 1.9, cabinColor: 0x1e3a8a, desc: 'Compact SUV' },
+  { id: 'merc-amggt', name: 'Mercedes AMG GT', color: 0xf97316, maxSpeed: 3.0, accel: 0.065, brake: 0.085, length: 4.5, width: 1.9, cabinColor: 0x000000, desc: 'Supercar' },
+  { id: 'merc-amg', name: 'Mercedes AMG C63', color: 0x7c3aed, maxSpeed: 2.8, accel: 0.062, brake: 0.082, length: 4.7, width: 1.8, cabinColor: 0x000000, desc: 'Performance sedan' },
+
+  // ===== AUDI (6 cars) =====
+  { id: 'audi-a3', name: 'Audi A3', color: 0x1e293b, maxSpeed: 2.2, accel: 0.048, brake: 0.068, length: 4.3, width: 1.8, cabinColor: 0x1e3a8a, desc: 'Subcompact luxury' },
+  { id: 'audi-a4', name: 'Audi A4', color: 0x1e293b, maxSpeed: 2.4, accel: 0.052, brake: 0.072, length: 4.7, width: 1.8, cabinColor: 0x1e3a8a, desc: 'Compact luxury' },
+  { id: 'audi-a6', name: 'Audi A6', color: 0x1e293b, maxSpeed: 2.5, accel: 0.055, brake: 0.075, length: 4.9, width: 1.9, cabinColor: 0x1e3a8a, desc: 'Mid-size luxury' },
+  { id: 'audi-q5', name: 'Audi Q5', color: 0xfbbf24, maxSpeed: 2.1, accel: 0.045, brake: 0.065, length: 4.7, width: 1.9, cabinColor: 0x1e3a8a, desc: 'Compact SUV' },
+  { id: 'audi-q7', name: 'Audi Q7', color: 0x3b82f6, maxSpeed: 2.1, accel: 0.045, brake: 0.065, length: 5.1, width: 2.0, cabinColor: 0x1e3a8a, desc: 'Full-size SUV' },
+  { id: 'audi-r8', name: 'Audi R8', color: 0xf97316, maxSpeed: 3.1, accel: 0.068, brake: 0.088, length: 4.4, width: 1.9, cabinColor: 0x000000, desc: 'Supercar' },
+
+  // ===== NISSAN (6 cars) =====
+  { id: 'nissan-altima', name: 'Nissan Altima', color: 0x3b82f6, maxSpeed: 2.2, accel: 0.046, brake: 0.068, length: 4.9, width: 1.9, cabinColor: 0x1e3a8a, desc: 'Mid-size sedan' },
+  { id: 'nissan-sentra', name: 'Nissan Sentra', color: 0xfbbf24, maxSpeed: 1.9, accel: 0.04, brake: 0.062, length: 4.6, width: 1.8, cabinColor: 0x1e3a8a, desc: 'Compact sedan' },
+  { id: 'nissan-gtr', name: 'Nissan GT-R', color: 0x1e293b, maxSpeed: 3.0, accel: 0.065, brake: 0.085, length: 4.7, width: 1.9, cabinColor: 0x000000, desc: 'Supercar killer' },
+  { id: 'nissan-370z', name: 'Nissan 370Z', color: 0xf97316, maxSpeed: 2.6, accel: 0.058, brake: 0.078, length: 4.2, width: 1.8, cabinColor: 0x000000, desc: 'Sports coupe' },
+  { id: 'nissan-leaf', name: 'Nissan Leaf', color: 0x10b981, maxSpeed: 1.8, accel: 0.04, brake: 0.063, length: 4.4, width: 1.8, cabinColor: 0x1e3a8a, desc: 'Electric car' },
+  { id: 'nissan-rogue', name: 'Nissan Rogue', color: 0x84cc16, maxSpeed: 2.0, accel: 0.042, brake: 0.065, length: 4.7, width: 1.9, cabinColor: 0x1e3a8a, desc: 'Compact SUV' },
+
+  // ===== MAZDA (5 cars) =====
+  { id: 'mazda-3', name: 'Mazda 3', color: 0xdc2626, maxSpeed: 2.2, accel: 0.048, brake: 0.068, length: 4.6, width: 1.8, cabinColor: 0x1e3a8a, desc: 'Compact sedan' },
+  { id: 'mazda-6', name: 'Mazda 6', color: 0x1e293b, maxSpeed: 2.3, accel: 0.05, brake: 0.07, length: 4.9, width: 1.9, cabinColor: 0x1e3a8a, desc: 'Mid-size sedan' },
+  { id: 'mazda-cx5', name: 'Mazda CX-5', color: 0xfbbf24, maxSpeed: 2.0, accel: 0.042, brake: 0.065, length: 4.6, width: 1.9, cabinColor: 0x1e3a8a, desc: 'Compact SUV' },
+  { id: 'mazda-miata', name: 'Mazda MX-5 Miata', color: 0xf97316, maxSpeed: 2.4, accel: 0.052, brake: 0.072, length: 4.0, width: 1.7, cabinColor: 0x000000, desc: 'Roadster' },
+  { id: 'mazda-rx7', name: 'Mazda RX-7', color: 0xec4899, maxSpeed: 2.7, accel: 0.06, brake: 0.08, length: 4.3, width: 1.8, cabinColor: 0x000000, desc: 'Rotary sports' },
+
+  // ===== FORD (5 cars) =====
+  { id: 'ford-mustang', name: 'Ford Mustang', color: 0xfbbf24, maxSpeed: 2.8, accel: 0.062, brake: 0.082, length: 4.8, width: 1.9, cabinColor: 0x000000, desc: 'Muscle car' },
+  { id: 'ford-f150', name: 'Ford F-150', color: 0x3b82f6, maxSpeed: 1.9, accel: 0.038, brake: 0.06, length: 5.9, width: 2.1, cabinColor: 0x1e3a8a, desc: 'Pickup truck' },
+  { id: 'ford-explorer', name: 'Ford Explorer', color: 0x1e293b, maxSpeed: 2.1, accel: 0.044, brake: 0.066, length: 5.0, width: 2.0, cabinColor: 0x1e3a8a, desc: 'SUV' },
+  { id: 'ford-focus', name: 'Ford Focus', color: 0xdc2626, maxSpeed: 2.0, accel: 0.042, brake: 0.064, length: 4.4, width: 1.8, cabinColor: 0x1e3a8a, desc: 'Hatchback' },
+  { id: 'ford-gt', name: 'Ford GT', color: 0xf97316, maxSpeed: 3.2, accel: 0.07, brake: 0.09, length: 4.6, width: 2.0, cabinColor: 0x000000, desc: 'Supercar' },
+
+  // ===== CHEVROLET (4 cars) =====
+  { id: 'chev-camaro', name: 'Chevrolet Camaro', color: 0xfbbf24, maxSpeed: 2.8, accel: 0.062, brake: 0.082, length: 4.8, width: 1.9, cabinColor: 0x000000, desc: 'Muscle car' },
+  { id: 'chev-corvette', name: 'Chevrolet Corvette', color: 0xdc2626, maxSpeed: 3.0, accel: 0.065, brake: 0.085, length: 4.5, width: 1.9, cabinColor: 0x000000, desc: 'American supercar' },
+  { id: 'chev-silverado', name: 'Chevrolet Silverado', color: 0x3b82f6, maxSpeed: 1.9, accel: 0.038, brake: 0.06, length: 5.8, width: 2.1, cabinColor: 0x1e3a8a, desc: 'Pickup truck' },
+  { id: 'chev-malibu', name: 'Chevrolet Malibu', color: 0x1e293b, maxSpeed: 2.1, accel: 0.044, brake: 0.066, length: 4.9, width: 1.9, cabinColor: 0x1e3a8a, desc: 'Mid-size sedan' },
+
+  // ===== TESLA (4 cars - all electric) =====
+  { id: 'tesla-models', name: 'Tesla Model S', color: 0x1e293b, maxSpeed: 3.0, accel: 0.07, brake: 0.088, length: 4.9, width: 1.9, cabinColor: 0xffffff, desc: 'Electric sedan' },
+  { id: 'tesla-model3', name: 'Tesla Model 3', color: 0x1e293b, maxSpeed: 2.7, accel: 0.065, brake: 0.085, length: 4.7, width: 1.9, cabinColor: 0xffffff, desc: 'Electric compact' },
+  { id: 'tesla-modelx', name: 'Tesla Model X', color: 0xfef3c7, maxSpeed: 2.6, accel: 0.062, brake: 0.082, length: 5.0, width: 2.0, cabinColor: 0xffffff, desc: 'Electric SUV' },
+  { id: 'tesla-modely', name: 'Tesla Model Y', color: 0x3b82f6, maxSpeed: 2.5, accel: 0.06, brake: 0.08, length: 4.7, width: 1.9, cabinColor: 0xffffff, desc: 'Electric crossover' },
+
+  // ===== PORSCHE (4 cars) =====
+  { id: 'porsche-911', name: 'Porsche 911', color: 0xfbbf24, maxSpeed: 3.0, accel: 0.065, brake: 0.085, length: 4.5, width: 1.9, cabinColor: 0x000000, desc: 'Iconic sports' },
+  { id: 'porsche-cayenne', name: 'Porsche Cayenne', color: 0x1e293b, maxSpeed: 2.6, accel: 0.058, brake: 0.078, length: 4.9, width: 1.9, cabinColor: 0x1e3a8a, desc: 'Luxury SUV' },
+  { id: 'porsche-taycan', name: 'Porsche Taycan', color: 0x06b6d4, maxSpeed: 2.9, accel: 0.068, brake: 0.088, length: 4.9, width: 1.9, cabinColor: 0x000000, desc: 'Electric sports' },
+  { id: 'porsche-boxster', name: 'Porsche Boxster', color: 0xf97316, maxSpeed: 2.7, accel: 0.06, brake: 0.08, length: 4.4, width: 1.8, cabinColor: 0x000000, desc: 'Roadster' },
+
+  // ===== LAMBORGHINI (3 cars) =====
+  { id: 'lambo-huracan', name: 'Lamborghini Huracan', color: 0xfbbf24, maxSpeed: 3.3, accel: 0.072, brake: 0.092, length: 4.5, width: 1.9, cabinColor: 0x000000, desc: 'V10 supercar' },
+  { id: 'lambo-aventador', name: 'Lamborghini Aventador', color: 0x10b981, maxSpeed: 3.5, accel: 0.075, brake: 0.095, length: 4.8, width: 2.0, cabinColor: 0x000000, desc: 'V12 supercar' },
+  { id: 'lambo-urus', name: 'Lamborghini Urus', color: 0xf97316, maxSpeed: 2.8, accel: 0.062, brake: 0.082, length: 5.1, width: 2.0, cabinColor: 0x000000, desc: 'Super SUV' },
+
+  // ===== FERRARI (3 cars) =====
+  { id: 'ferrari-488', name: 'Ferrari 488', color: 0xdc2626, maxSpeed: 3.4, accel: 0.072, brake: 0.092, length: 4.6, width: 1.9, cabinColor: 0x000000, desc: 'V8 supercar' },
+  { id: 'ferrari-f8', name: 'Ferrari F8', color: 0xdc2626, maxSpeed: 3.4, accel: 0.073, brake: 0.093, length: 4.6, width: 1.9, cabinColor: 0x000000, desc: 'Tributo' },
+  { id: 'ferrari-roma', name: 'Ferrari Roma', color: 0xfbbf24, maxSpeed: 3.2, accel: 0.068, brake: 0.088, length: 4.7, width: 1.9, cabinColor: 0x000000, desc: 'Grand tourer' },
+
+  // ===== VOLKSWAGEN (4 cars) =====
+  { id: 'vw-golf', name: 'VW Golf', color: 0x1e293b, maxSpeed: 2.0, accel: 0.042, brake: 0.064, length: 4.3, width: 1.8, cabinColor: 0x1e3a8a, desc: 'Hatchback' },
+  { id: 'vw-passat', name: 'VW Passat', color: 0x3b82f6, maxSpeed: 2.1, accel: 0.044, brake: 0.066, length: 4.9, width: 1.9, cabinColor: 0x1e3a8a, desc: 'Family sedan' },
+  { id: 'vw-tiguan', name: 'VW Tiguan', color: 0xfbbf24, maxSpeed: 2.0, accel: 0.042, brake: 0.064, length: 4.7, width: 1.9, cabinColor: 0x1e3a8a, desc: 'Compact SUV' },
+  { id: 'vw-beetle', name: 'VW Beetle', color: 0xf97316, maxSpeed: 1.9, accel: 0.04, brake: 0.062, length: 4.3, width: 1.8, cabinColor: 0x1e3a8a, desc: 'Classic compact' },
+
+  // ===== HYUNDAI (4 cars) =====
+  { id: 'hyundai-sonata', name: 'Hyundai Sonata', color: 0x3b82f6, maxSpeed: 2.1, accel: 0.044, brake: 0.066, length: 4.9, width: 1.9, cabinColor: 0x1e3a8a, desc: 'Mid-size sedan' },
+  { id: 'hyundai-elantra', name: 'Hyundai Elantra', color: 0xfbbf24, maxSpeed: 2.0, accel: 0.042, brake: 0.064, length: 4.6, width: 1.8, cabinColor: 0x1e3a8a, desc: 'Compact sedan' },
+  { id: 'hyundai-tucson', name: 'Hyundai Tucson', color: 0x10b981, maxSpeed: 2.0, accel: 0.042, brake: 0.064, length: 4.5, width: 1.9, cabinColor: 0x1e3a8a, desc: 'Compact SUV' },
+  { id: 'hyundai-santafe', name: 'Hyundai Santa Fe', color: 0x1e293b, maxSpeed: 2.0, accel: 0.042, brake: 0.064, length: 4.8, width: 1.9, cabinColor: 0x1e3a8a, desc: 'Mid-size SUV' },
+
+  // ===== KIA (3 cars) =====
+  { id: 'kia-optima', name: 'Kia Optima', color: 0x3b82f6, maxSpeed: 2.1, accel: 0.044, brake: 0.066, length: 4.9, width: 1.9, cabinColor: 0x1e3a8a, desc: 'Mid-size sedan' },
+  { id: 'kia-sportage', name: 'Kia Sportage', color: 0xfbbf24, maxSpeed: 2.0, accel: 0.042, brake: 0.064, length: 4.5, width: 1.9, cabinColor: 0x1e3a8a, desc: 'Compact SUV' },
+  { id: 'kia-telluride', name: 'Kia Telluride', color: 0x1e293b, maxSpeed: 2.0, accel: 0.042, brake: 0.064, length: 5.0, width: 2.0, cabinColor: 0x1e3a8a, desc: 'Full-size SUV' },
+
+  // ===== LUXURY (3 cars) =====
+  { id: 'rolls-phantom', name: 'Rolls-Royce Phantom', color: 0x1e293b, maxSpeed: 2.5, accel: 0.055, brake: 0.075, length: 5.8, width: 2.0, cabinColor: 0x1e3a8a, desc: 'Ultra luxury' },
+  { id: 'bentley-cont', name: 'Bentley Continental', color: 0x10b981, maxSpeed: 2.7, accel: 0.06, brake: 0.08, length: 4.8, width: 1.9, cabinColor: 0x1e3a8a, desc: 'Grand tourer' },
+  { id: 'mini-cooper', name: 'Mini Cooper', color: 0xdc2626, maxSpeed: 2.2, accel: 0.048, brake: 0.068, length: 3.8, width: 1.7, cabinColor: 0x1e3a8a, desc: 'Compact' },
 ];
 
 // Color options for body paint
@@ -1407,15 +1530,29 @@ function closeGarage() {
 }
 
 function buildGarageUI() {
-  // Car grid
+  // Car grid - filter by search text
+  const searchText = (document.getElementById('carSearch')?.value || '').toLowerCase().trim();
+  const filteredCars = CAR_TYPES
+    .map((c, i) => ({ car: c, index: i }))
+    .filter(({ car }) => {
+      if (!searchText) return true;
+      return car.name.toLowerCase().includes(searchText) ||
+             car.id.toLowerCase().includes(searchText) ||
+             car.desc.toLowerCase().includes(searchText);
+    });
+
   const carGrid = document.getElementById('carGrid');
-  carGrid.innerHTML = CAR_TYPES.map((c, i) => `
-    <div class="car-option ${i === currentCarType ? 'selected' : ''}" onpointerdown="selectCar(${i})">
-      <div class="preview" style="background: #${c.color.toString(16).padStart(6, '0')}"></div>
-      <div class="name">${c.name}</div>
-      <div class="stat">${c.desc}</div>
-    </div>
-  `).join('');
+  if (filteredCars.length === 0) {
+    carGrid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #94a3b8; padding: 30px;">No cars match your search. Try "honda", "bmw", "suv", "sport", etc.</div>';
+  } else {
+    carGrid.innerHTML = filteredCars.map(({ car: c, index: i }) => `
+      <div class="car-option ${i === currentCarType ? 'selected' : ''}" onpointerdown="selectCar(${i})">
+        <div class="preview" style="background: #${c.color.toString(16).padStart(6, '0')}"></div>
+        <div class="name">${c.name}</div>
+        <div class="stat">${c.desc}</div>
+      </div>
+    `).join('');
+  }
 
   // Color grid
   const colorGrid = document.getElementById('colorGrid');
