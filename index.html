@@ -299,6 +299,196 @@
     .pedal { width: 100px; height: 100px; font-size: 30px; }
     .wheel-wrap { width: 220px; height: 220px; }
   }
+
+  /* Garage button */
+  .garage-btn {
+    position: fixed;
+    top: calc(env(safe-area-inset-top) + 60px);
+    left: 14px;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(10px);
+    color: white;
+    border: 1px solid rgba(99, 102, 241, 0.4);
+    padding: 8px 14px;
+    border-radius: 18px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    z-index: 11;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .garage-btn:active { transform: scale(0.95); }
+
+  /* Garage overlay */
+  .garage-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(10px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    padding: 20px;
+  }
+  .garage-overlay.show { display: flex; }
+  .garage-panel {
+    background: #1e293b;
+    border: 2px solid #4c1d95;
+    border-radius: 18px;
+    padding: 24px;
+    max-width: 600px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(76, 29, 149, 0.4);
+  }
+  .garage-title {
+    font-size: 24px;
+    font-weight: 800;
+    color: #a78bfa;
+    margin-bottom: 16px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .garage-section {
+    margin-bottom: 20px;
+  }
+  .garage-section h3 {
+    font-size: 13px;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 10px;
+    font-weight: 700;
+  }
+  .car-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 10px;
+  }
+  .car-option {
+    background: #0f172a;
+    border: 2px solid #334155;
+    border-radius: 12px;
+    padding: 12px 8px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+  }
+  .car-option:hover { border-color: #7c3aed; }
+  .car-option.selected {
+    background: linear-gradient(135deg, #4c1d95, #064e3b);
+    border-color: #a78bfa;
+  }
+  .car-option .preview {
+    width: 50px;
+    height: 30px;
+    margin: 0 auto 6px;
+    border-radius: 6px;
+    border: 2px solid #000;
+    position: relative;
+  }
+  .car-option .preview::before {
+    content: '';
+    position: absolute;
+    top: 4px; left: 8px; right: 8px;
+    height: 8px;
+    background: rgba(0,0,0,0.4);
+    border-radius: 3px;
+  }
+  .car-option .name {
+    font-size: 12px;
+    color: white;
+    font-weight: 700;
+  }
+  .car-option .stat {
+    font-size: 10px;
+    color: #94a3b8;
+    margin-top: 2px;
+  }
+  .color-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+    gap: 8px;
+  }
+  .color-option {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 3px solid #334155;
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+  .color-option:hover { transform: scale(1.1); }
+  .color-option.selected {
+    border-color: white;
+    transform: scale(1.15);
+  }
+  .tuning-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+  }
+  .tuning-option {
+    background: #0f172a;
+    border: 2px solid #334155;
+    border-radius: 10px;
+    padding: 10px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+  }
+  .tuning-option:hover { border-color: #7c3aed; }
+  .tuning-option.selected {
+    background: linear-gradient(135deg, #4c1d95, #064e3b);
+    border-color: #a78bfa;
+  }
+  .tuning-option .label {
+    font-size: 12px;
+    color: white;
+    font-weight: 700;
+  }
+  .tuning-option .desc {
+    font-size: 10px;
+    color: #94a3b8;
+    margin-top: 4px;
+  }
+  .garage-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    justify-content: center;
+  }
+  .garage-btn-action {
+    background: linear-gradient(135deg, #7c3aed, #4c1d95);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 24px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .garage-btn-action.green {
+    background: linear-gradient(135deg, #10b981, #065f46);
+  }
+  .garage-btn-action:active { transform: scale(0.95); }
+  .free-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    color: #1f2937;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 800;
+    margin-left: 8px;
+  }
 </style>
 </head>
 <body>
@@ -312,6 +502,7 @@
   <span class="unit">mph</span>
 </div>
 <button class="reset-btn" onpointerdown="resetCar()">🔄 Reset</button>
+<button class="garage-btn" onpointerdown="openGarage()">🏎️ Garage</button>
 <button class="cam-btn" id="camBtn" onpointerdown="cycleCamera()">
   <span class="cam-icon">📷</span>
   <span class="cam-name" id="camName">Chase</span>
@@ -344,6 +535,35 @@
     <button class="pedal gas" id="gasBtn">
       ⛽<span class="lbl">GAS</span>
     </button>
+  </div>
+</div>
+
+<!-- Garage overlay -->
+<div class="garage-overlay">
+  <div class="garage-panel">
+    <div class="garage-title">
+      🏎️ Garage <span class="free-badge">ALL FREE</span>
+    </div>
+
+    <div class="garage-section">
+      <h3>Choose your car</h3>
+      <div class="car-grid" id="carGrid"></div>
+    </div>
+
+    <div class="garage-section">
+      <h3>Paint color</h3>
+      <div class="color-grid" id="colorGrid"></div>
+    </div>
+
+    <div class="garage-section">
+      <h3>Tuning</h3>
+      <div class="tuning-grid" id="tuningGrid"></div>
+    </div>
+
+    <div class="garage-actions">
+      <button class="garage-btn-action green" onpointerdown="applyCar()">✅ Drive this car!</button>
+      <button class="garage-btn-action" onpointerdown="closeGarage()">Cancel</button>
+    </div>
   </div>
 </div>
 
@@ -1133,6 +1353,201 @@ document.addEventListener('touchmove', (e) => {
 
 // Hide hint after 6 seconds
 setTimeout(() => document.getElementById('hint').classList.add('hide'), 6000);
+
+/* ============================================================
+   GARAGE: Car selector + tuning (all FREE!)
+   ============================================================ */
+
+// Car types (each has different stats and shape)
+const CAR_TYPES = [
+  { id: 'sports', name: 'Sports Car', color: 0xdc2626, maxSpeed: 2.5, accel: 0.05, brake: 0.07, length: 5, width: 3, cabinColor: 0x1e3a8a, desc: 'Fast & nimble' },
+  { id: 'truck', name: 'Truck', color: 0x3b82f6, maxSpeed: 1.8, accel: 0.035, brake: 0.055, length: 7, width: 4, cabinColor: 0x1e3a8a, desc: 'Big & strong' },
+  { id: 'taxi', name: 'Taxi', color: 0xfbbf24, maxSpeed: 2.0, accel: 0.045, brake: 0.065, length: 5, width: 3, cabinColor: 0x1e3a8a, desc: 'City cruiser' },
+  { id: 'suv', name: 'SUV', color: 0x10b981, maxSpeed: 2.0, accel: 0.04, brake: 0.06, length: 6, width: 3.5, cabinColor: 0x1e3a8a, desc: 'All-terrain' },
+  { id: 'race', name: 'Race Car', color: 0x7c3aed, maxSpeed: 3.0, accel: 0.06, brake: 0.08, length: 5, width: 2.8, cabinColor: 0x000000, desc: 'Top speed monster' },
+  { id: 'police', name: 'Police', color: 0x1e293b, maxSpeed: 2.6, accel: 0.055, brake: 0.075, length: 5.5, width: 3, cabinColor: 0xffffff, desc: 'Lights & sirens' },
+];
+
+// Color options for body paint
+const CAR_COLORS = [
+  0xdc2626, // red
+  0x3b82f6, // blue
+  0xfbbf24, // yellow
+  0x10b981, // green
+  0x7c3aed, // purple
+  0x1e293b, // black
+  0xffffff, // white
+  0xf97316, // orange
+  0xec4899, // pink
+  0x06b6d4, // cyan
+  0x84cc16, // lime
+  0xa78bfa, // lavender
+];
+
+// Tuning presets
+const TUNING_PRESETS = [
+  { id: 'balanced', name: 'Balanced', desc: 'All-round good', maxSpeedMul: 1.0, accelMul: 1.0 },
+  { id: 'speed', name: 'Speed', desc: 'Max top speed', maxSpeedMul: 1.4, accelMul: 1.0 },
+  { id: 'accel', name: 'Accelerator', desc: 'Quick off line', maxSpeedMul: 1.0, accelMul: 1.6 },
+  { id: 'grip', name: 'Grip', desc: 'Better turning', maxSpeedMul: 0.9, accelMul: 1.1 },
+  { id: 'drift', name: 'Drift', desc: 'Slidey & fun', maxSpeedMul: 1.2, accelMul: 1.3 },
+  { id: 'tank', name: 'Tank', desc: 'Slow but strong', maxSpeedMul: 0.7, accelMul: 0.7 },
+];
+
+let currentCarType = 0;
+let currentColor = 0xdc2626;
+let currentTuning = 0;
+
+function openGarage() {
+  buildGarageUI();
+  document.querySelector('.garage-overlay').classList.add('show');
+}
+function closeGarage() {
+  document.querySelector('.garage-overlay').classList.remove('show');
+}
+
+function buildGarageUI() {
+  // Car grid
+  const carGrid = document.getElementById('carGrid');
+  carGrid.innerHTML = CAR_TYPES.map((c, i) => `
+    <div class="car-option ${i === currentCarType ? 'selected' : ''}" onpointerdown="selectCar(${i})">
+      <div class="preview" style="background: #${c.color.toString(16).padStart(6, '0')}"></div>
+      <div class="name">${c.name}</div>
+      <div class="stat">${c.desc}</div>
+    </div>
+  `).join('');
+
+  // Color grid
+  const colorGrid = document.getElementById('colorGrid');
+  colorGrid.innerHTML = CAR_COLORS.map((col, i) => `
+    <div class="color-option ${col === currentColor ? 'selected' : ''}"
+         style="background: #${col.toString(16).padStart(6, '0')}"
+         onpointerdown="selectColor(${i})"></div>
+  `).join('');
+
+  // Tuning grid
+  const tuningGrid = document.getElementById('tuningGrid');
+  tuningGrid.innerHTML = TUNING_PRESETS.map((t, i) => `
+    <div class="tuning-option ${i === currentTuning ? 'selected' : ''}" onpointerdown="selectTuning(${i})">
+      <div class="label">${t.name}</div>
+      <div class="desc">${t.desc}</div>
+    </div>
+  `).join('');
+}
+
+function selectCar(i) {
+  currentCarType = i;
+  // Auto-update color to the car's default color when picking a new car
+  currentColor = CAR_TYPES[i].color;
+  buildGarageUI();
+}
+function selectColor(i) {
+  currentColor = CAR_COLORS[i];
+  buildGarageUI();
+}
+function selectTuning(i) {
+  currentTuning = i;
+  buildGarageUI();
+}
+
+function applyCar() {
+  const carType = CAR_TYPES[currentCarType];
+  const tuning = TUNING_PRESETS[currentTuning];
+
+  // Apply car stats with tuning multipliers
+  carState.maxSpeed = carType.maxSpeed * tuning.maxSpeedMul;
+  carState.accel = carType.accel * tuning.accelMul;
+  carState.brakePower = carType.brake;
+  carState.reverseAccel = carType.accel * 0.4;
+  carState.friction = 0.015;
+
+  // Update car visuals: body size + color
+  rebuildCarVisuals(carType, currentColor);
+
+  closeGarage();
+}
+
+// Rebuild the car mesh with new size and color
+function rebuildCarVisuals(carType, color) {
+  // Remove old car children
+  while (carGroup.children.length > 0) {
+    const child = carGroup.children[0];
+    carGroup.remove(child);
+    if (child.geometry) child.geometry.dispose();
+    if (child.material) child.material.dispose();
+  }
+  // Clear wheels array
+  wheels.length = 0;
+
+  // Body
+  const bodyGeo = new THREE.BoxGeometry(carType.width, 1, carType.length);
+  const bodyMat = new THREE.MeshPhongMaterial({ color: color, shininess: 80 });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.position.y = 1.0;
+  body.castShadow = true;
+  carGroup.add(body);
+
+  // Cabin
+  const cabinW = carType.width * 0.83;
+  const cabinL = carType.length * 0.48;
+  const cabinGeo = new THREE.BoxGeometry(cabinW, 0.9, cabinL);
+  const cabinMat = new THREE.MeshPhongMaterial({ color: carType.cabinColor, shininess: 100 });
+  const cabin = new THREE.Mesh(cabinGeo, cabinMat);
+  cabin.position.set(0, 1.85, -0.3);
+  cabin.castShadow = true;
+  carGroup.add(cabin);
+
+  // Windshield
+  const windshieldMat = new THREE.MeshPhongMaterial({ color: 0x93c5fd, transparent: true, opacity: 0.6, shininess: 200 });
+  const windshield = new THREE.Mesh(new THREE.PlaneGeometry(cabinW * 0.95, 0.8), windshieldMat);
+  windshield.position.set(0, 1.85, cabinL / 2);
+  windshield.rotation.x = -Math.PI / 2 + 0.5;
+  carGroup.add(windshield);
+
+  // Headlights (front)
+  [-1, 1].forEach(side => {
+    const light = new THREE.Mesh(
+      new THREE.BoxGeometry(0.6, 0.3, 0.1),
+      new THREE.MeshPhongMaterial({ color: 0xfde68a, emissive: 0xfde68a, emissiveIntensity: 0.5 })
+    );
+    light.position.set(side * (carType.width / 2 - 0.4), 1.0, carType.length / 2);
+    carGroup.add(light);
+  });
+
+  // Taillights (back)
+  [-1, 1].forEach(side => {
+    const light = new THREE.Mesh(
+      new THREE.BoxGeometry(0.6, 0.3, 0.1),
+      new THREE.MeshPhongMaterial({ color: 0xef4444, emissive: 0xef4444, emissiveIntensity: 0.4 })
+    );
+    light.position.set(side * (carType.width / 2 - 0.4), 1.0, -carType.length / 2);
+    carGroup.add(light);
+  });
+
+  // Wheels
+  const wheelGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.4, 16);
+  const wheelMat = new THREE.MeshPhongMaterial({ color: 0x1a1a1a });
+  const w = carType.width;
+  const l = carType.length;
+  const wheelPositions = [
+    [-w/2 - 0.1, 0.6, l/2 - 1.4],
+    [w/2 + 0.1, 0.6, l/2 - 1.4],
+    [-w/2 - 0.1, 0.6, -l/2 + 1.4],
+    [w/2 + 0.1, 0.6, -l/2 + 1.4],
+  ];
+  wheelPositions.forEach(pos => {
+    const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+    wheel.position.set(pos[0], pos[1], pos[2]);
+    wheel.rotation.z = Math.PI / 2;
+    wheel.castShadow = true;
+    carGroup.add(wheel);
+    wheels.push(wheel);
+  });
+}
+
+// Initialize car visuals with default car
+rebuildCarVisuals(CAR_TYPES[0], CAR_TYPES[0].color);
+
 </script>
 
 </body>
