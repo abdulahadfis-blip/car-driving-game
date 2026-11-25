@@ -1,10 +1,18 @@
 /*
  * mp-core.js - the MULTIPLAYER add-on core. RUNS INSIDE THE GAME IFRAME
- * (injected as a <script> by multiplayer.js).
+ * (injected as a <script> by multiplayer.js).   v3
  *
- * Because this script executes in the same document as the game, it can
- * read the game's top-level const bindings (carState, scene, input, keys)
- * directly — something parent-page code can never do.
+ * v3 fixes:
+ *   1. JSON serialization instead of binary -> data packets can no longer
+ *      silently vanish between two windows.
+ *   2. ANTI-OVERLAP PARKING: both players spawn at the same world spot, so
+ *      the friend's car used to be drawn EXACTLY inside your own car
+ *      (invisible!). Now a remote car is always nudged to park ~7 units
+ *      beside your car when it is too close, so you can SEE it instantly.
+ *   3. "Link:" health line in the panel shows whether data really flows.
+ *   4. Auto-reconnect for joiners if no data arrives.
+ *   5. Brighter beacon pillar + all network handlers wrapped in try/catch
+ *      so one error can never kill the whole multiplayer link.
  *
  * How it works (PeerJS, free public signaling server, peer-to-peer):
  *   - Host creates a room with a code -> peer id "acmp-<code>-h"
@@ -53,6 +61,7 @@
       '  border-radius: 8px; color: white; font-weight: 800; font-size: 11px; cursor: pointer; }',
       '.mp-status { margin-top: 7px; font-size: 11px; color: #cbd5e1; line-height: 1.4; }',
       '.mp-count { margin-top: 4px; font-size: 11px; color: #a7f3d0; font-weight: 700; }',
+      '.mp-link { margin-top: 3px; font-size: 10px; font-weight: 700; }',
       '.mp-panel.min { width: auto; }',
       '.mp-panel.min .mp-body { display: none; }'
     ].join('\n');
@@ -75,6 +84,7 @@
       '</div>' +
       '<div class="mp-status" id="mpStatus">Pick a room code. First player CREATEs, friends JOIN.</div>' +
       '<div class="mp-count" id="mpCount"></div>' +
+      '<div class="mp-link" id="mpLink"></div>' +
       '<button class="mp-btn-leave" id="mpLeave">LEAVE</button>' +
       '</div>';
     document.body.appendChild(panel);
@@ -83,6 +93,7 @@
     var codeEl = document.getElementById('mpCode');
     var statusEl = document.getElementById('mpStatus');
     var countEl = document.getElementById('mpCount');
+    var linkEl = document.getElementById('mpLink');
     try { nameEl.value = localStorage.getItem('mpname') || 'Player'; } catch (e) {}
 
     function status(msg) { statusEl.textContent = msg; }
@@ -105,10 +116,36 @@
     var players = {};
     var myOrigin = { x: 0, z: 0 };
 
+    // link health + auto-reconnect bookkeeping
+    var recvCount = 0;        // packets received
+    var lastRecvTime = 0;     // ms timestamp of last received packet
+    var joinedAt = 0;         // ms timestamp when we joined/created
+    var lastReconnAt = 0;     // ms timestamp of last reconnect attempt
+    var reconnectTries = 0;
+    var reconGaveUp = false;
+    var myJoinCode = null;    // remembered so auto-reconnect can rejoin
+    var PeerCtorSaved = null;
+
     function myState() {
       return { id: myNetId, name: myName, color: myColor,
         x: carState.x, z: carState.z, angle: carState.angle,
         ox: myOrigin.x, oz: myOrigin.z };
+    }
+
+    function markRecv() { recvCount++; lastRecvTime = Date.now(); }
+
+    function updateLink() {
+      if (!myNetId) { linkEl.textContent = ''; return; }
+      if (recvCount > 0) {
+        var age = Math.floor((Date.now() - lastRecvTime) / 1000);
+        linkEl.textContent = 'Link: OK - ' + recvCount + ' msgs' +
+          (age >= 3 ? ' (' + age + 's quiet)' : '');
+        linkEl.style.color = age >= 8 ? '#fbbf24' : '#4ade80';
+      } else {
+        var wait = joinedAt ? Math.floor((Date.now() - joinedAt) / 1000) : 0;
+        linkEl.textContent = 'Link: no data yet (' + wait + 's)...';
+        linkEl.style.color = '#fbbf24';
+      }
     }
 
     /* ================= PeerJS acquisition ================= */
@@ -179,15 +216,17 @@
         wh.position.set(pos[i][0], 0.42, pos[i][1]);
         g.add(wh);
       }
-      g.add(makeNameSprite(name));
+      try { g.add(makeNameSprite(name)); } catch (eSpr) {}
       // Tall light pillar above the car so friends can spot each other
       // from far away (kids drive in different directions fast!)
-      var beacon = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.5, 0.5, 40, 8),
-        new THREE.MeshBasicMaterial({ color: colorHex, transparent: true,
-          opacity: 0.28, depthWrite: false }));
-      beacon.position.y = 20;
-      g.add(beacon);
+      try {
+        var beacon = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.8, 0.8, 40, 8),
+          new THREE.MeshBasicMaterial({ color: colorHex, transparent: true,
+            opacity: 0.5, depthWrite: false }));
+        beacon.position.y = 20;
+        g.add(beacon);
+      } catch (eBeacon) {}
       scene.add(g);
       return g;
     }
@@ -215,6 +254,39 @@
       Object.keys(players).forEach(removeRemote);
     }
 
+    /* Move every remote car toward its network target.
+       ANTI-OVERLAP: if the remote car would be drawn within 5 units of MY
+       car (both players spawn at the same spot!), push its display
+       position out to 7 units so the friend's car is always visible
+       parked next to yours. True positions are still tracked - this only
+       affects the display when cars are very close. */
+    function stepRemotes() {
+      Object.keys(players).forEach(function (pid) {
+        var r = players[pid];
+        if (!r || !r.group) return;
+        var dx = r.tx - carState.x, dz = r.tz - carState.z;
+        var d = Math.sqrt(dx * dx + dz * dz);
+        var ox = 0, oz = 0;
+        if (d < 5) {
+          var want = 7;
+          if (d < 0.5) { ox = want; }
+          else { ox = (dx / d) * (want - d); oz = (dz / d) * (want - d); }
+          // deterministic side flip per player id so two friends never stack
+          var flip = 1, s = String(pid);
+          for (var q = 0; q < s.length; q++) flip += s.charCodeAt(q);
+          if (flip % 2 === 0) { ox = -ox; oz = -oz; }
+        }
+        r.cx += (r.tx + ox - r.cx) * 0.2;
+        r.cz += (r.tz + oz - r.cz) * 0.2;
+        var da = r.ta - r.ca;
+        while (da > Math.PI) da -= Math.PI * 2;
+        while (da < -Math.PI) da += Math.PI * 2;
+        r.ca += da * 0.2;
+        r.group.position.set(r.cx, 0, r.cz);
+        r.group.rotation.y = r.ca;
+      });
+    }
+
     /* ================= network reset ================= */
     function resetNet() {
       isHost = false;
@@ -222,7 +294,9 @@
       peer = null; conns = []; hostConn = null; myNetId = null;
       joinerStates = {};
       clearRemotes();
+      recvCount = 0; lastRecvTime = 0; joinedAt = 0;
       updateCount(0);
+      updateLink();
     }
 
     /* ================= HOST ================= */
@@ -233,19 +307,23 @@
       peer = new PeerCtor('acmp-' + code + '-h');
       peer.on('open', function (id) {
         myNetId = id;
-        status('Room ' + code + ' is LIVE! Waiting for friends to JOIN...');
+        joinedAt = Date.now(); lastRecvTime = joinedAt;
+        status('Room ' + code + ' is LIVE! When a friend joins, their car parks right beside yours!');
       });
       peer.on('connection', function (conn) {
         conns.push(conn);
-        status('A friend connected! Look for the light pillar!');
         conn.on('data', function (msg) {
-          if (msg && msg.t === 'me') {
-            joinerStates[conn.peer] = {
-              id: conn.peer, name: msg.name, color: msg.color,
-              x: msg.x, z: msg.z, angle: msg.angle, ox: msg.ox, oz: msg.oz
-            };
-            addOrUpdateRemote(joinerStates[conn.peer]);
-          }
+          try {
+            if (msg && msg.t === 'me') {
+              markRecv();
+              joinerStates[conn.peer] = {
+                id: conn.peer, name: msg.name, color: msg.color,
+                x: msg.x, z: msg.z, angle: msg.angle, ox: msg.ox, oz: msg.oz
+              };
+              try { addOrUpdateRemote(joinerStates[conn.peer]); } catch (e2) {}
+              status('Friend connected! Look beside your car - and up at the glowing pillar!');
+            }
+          } catch (e) {}
         });
         conn.on('close', function () {
           conns = conns.filter(function (c) { return c !== conn; });
@@ -266,22 +344,31 @@
       peer = new PeerCtor();
       peer.on('open', function (id) {
         myNetId = id;
-        hostConn = peer.connect('acmp-' + code + '-h', { reliable: true });
+        // JSON serialization: no binary chunking, packets cannot silently
+        // vanish. The host side adopts the initiator's serialization.
+        hostConn = peer.connect('acmp-' + code + '-h',
+          { reliable: true, serialization: 'json' });
         hostConn.on('open', function () {
-          status('Joined room ' + code + '! Look for the light pillar!');
+          joinedAt = Date.now(); lastRecvTime = joinedAt;
+          status('Joined room ' + code + '! Friend car parks right NEXT TO your car!');
           hostConn.on('data', function (msg) {
-            if (msg && msg.t === 'all') {
-              var seen = {};
-              for (var i = 0; i < msg.players.length; i++) {
-                var p = msg.players[i];
-                seen[p.id] = true;
-                if (p.id !== myNetId) addOrUpdateRemote(p);
+            try {
+              if (msg && msg.t === 'all') {
+                markRecv();
+                var seen = {};
+                for (var i = 0; i < msg.players.length; i++) {
+                  var p = msg.players[i];
+                  seen[p.id] = true;
+                  if (p.id !== myNetId) {
+                    try { addOrUpdateRemote(p); } catch (e2) {}
+                  }
+                }
+                Object.keys(players).forEach(function (pid) {
+                  if (!seen[pid]) removeRemote(pid);
+                });
+                updateCount(msg.players.length);
               }
-              Object.keys(players).forEach(function (pid) {
-                if (!seen[pid]) removeRemote(pid);
-              });
-              updateCount(msg.players.length);
-            }
+            } catch (e) {}
           });
           hostConn.on('close', function () {
             status('Disconnected from host.');
@@ -296,23 +383,51 @@
       });
     }
 
+    /* auto-reconnect: joiner only, if no data at all is coming through */
+    function maybeReconnect() {
+      if (isHost || !myJoinCode || !PeerCtorSaved || reconGaveUp) return;
+      if (reconnectTries >= 5) {
+        reconGaveUp = true;
+        status('Connection is shaky. Press LEAVE, then JOIN again.');
+        return;
+      }
+      var now = Date.now();
+      if (recvCount > 0 && now - lastRecvTime < 15000) return;   // data flowing
+      if (recvCount === 0 && joinedAt > 0 && now - joinedAt < 8000) return; // just joined
+      if (joinedAt === 0) return;                                // still dialing
+      if (now - lastReconnAt < 20000) return;                    // don't spam
+      lastReconnAt = now; reconnectTries++;
+      status('Reconnecting (try ' + reconnectTries + '/5)...');
+      var code = myJoinCode, P = PeerCtorSaved;
+      resetNet();
+      startJoin(code, P);
+    }
+
     /* ================= 10Hz send loop ================= */
     setInterval(function () {
-      if (!myNetId) return;
-      var s = myState();
-      if (isHost) {
-        var list = [s];
-        Object.keys(joinerStates).forEach(function (k) { list.push(joinerStates[k]); });
-        for (var i = 0; i < conns.length; i++) {
-          if (conns[i].open) { try { conns[i].send({ t: 'all', players: list }); } catch (e) {} }
+      try {
+        if (myNetId) {
+          var s = myState();
+          if (isHost) {
+            var list = [s];
+            Object.keys(joinerStates).forEach(function (k) { list.push(joinerStates[k]); });
+            for (var i = 0; i < conns.length; i++) {
+              if (conns[i].open) {
+                try { conns[i].send({ t: 'all', players: list }); } catch (e) {}
+              }
+            }
+            updateCount(list.length);
+          } else if (hostConn && hostConn.open) {
+            try {
+              hostConn.send({ t: 'me', name: myName, color: myColor,
+                x: s.x, z: s.z, angle: s.angle, ox: s.ox, oz: s.oz });
+            } catch (e) {}
+          }
         }
-        updateCount(list.length);
-      } else if (hostConn && hostConn.open) {
-        try {
-          hostConn.send({ t: 'me', name: myName, color: myColor,
-            x: s.x, z: s.z, angle: s.angle, ox: s.ox, oz: s.oz });
-        } catch (e) {}
-      }
+        try { stepRemotes(); } catch (e2) {}
+        try { updateLink(); } catch (e3) {}
+        try { maybeReconnect(); } catch (e4) {}
+      } catch (e) {}
     }, 100);
 
     // ================= patch update: remotes + recenter tracking =================
@@ -333,36 +448,28 @@
       var g0x = groundRef ? groundRef.position.x : 0;
       var g0z = groundRef ? groundRef.position.z : 0;
       origUpdate.apply(this, arguments);
-      var jumpX = prevX - carState.x;
-      var jumpZ = prevZ - carState.z;
-      if (Math.abs(jumpX) > 100 || Math.abs(jumpZ) > 100) {
-        var worldMoved = groundRef &&
-          Math.abs((g0x - groundRef.position.x) - jumpX) < 15 &&
-          Math.abs((g0z - groundRef.position.z) - jumpZ) < 15;
-        if (worldMoved) {
-          // real wrap: shift my origin so remote car positions stay true
-          myOrigin.x += jumpX;
-          myOrigin.z += jumpZ;
-          Object.keys(players).forEach(function (pid) {
-            var r = players[pid];
-            r.cx -= jumpX; r.cz -= jumpZ;
-            r.tx -= jumpX; r.tz -= jumpZ;
-          });
+      try {
+        var jumpX = prevX - carState.x;
+        var jumpZ = prevZ - carState.z;
+        if (Math.abs(jumpX) > 100 || Math.abs(jumpZ) > 100) {
+          var worldMoved = groundRef &&
+            Math.abs((g0x - groundRef.position.x) - jumpX) < 15 &&
+            Math.abs((g0z - groundRef.position.z) - jumpZ) < 15;
+          if (worldMoved) {
+            // real wrap: shift my origin so remote car positions stay true
+            myOrigin.x += jumpX;
+            myOrigin.z += jumpZ;
+            Object.keys(players).forEach(function (pid) {
+              var r = players[pid];
+              r.cx -= jumpX; r.cz -= jumpZ;
+              r.tx -= jumpX; r.tz -= jumpZ;
+            });
+          }
+          // Reset teleport: do nothing. Origins stay correct and the next
+          // network update (10x per second) re-places every remote car.
         }
-        // Reset teleport: do nothing. Origins stay correct and the next
-        // network update (10x per second) re-places every remote car.
-      }
-      Object.keys(players).forEach(function (pid) {
-        var r = players[pid];
-        r.cx += (r.tx - r.cx) * 0.2;
-        r.cz += (r.tz - r.cz) * 0.2;
-        var da = r.ta - r.ca;
-        while (da > Math.PI) da -= Math.PI * 2;
-        while (da < -Math.PI) da += Math.PI * 2;
-        r.ca += da * 0.2;
-        r.group.position.set(r.cx, 0, r.cz);
-        r.group.rotation.y = r.ca;
-      });
+      } catch (e) {}
+      try { stepRemotes(); } catch (e2) {}
     };
 
     /* ================= buttons ================= */
@@ -372,6 +479,7 @@
     document.getElementById('mpCreate').addEventListener('click', function () {
       myName = (nameEl.value || 'Player').slice(0, 12);
       try { localStorage.setItem('mpname', myName); } catch (e) {}
+      myJoinCode = null; // host path: no auto-reconnect
       var code = cleanCode();
       if (!code) {
         code = String(Math.floor(1000 + Math.random() * 9000));
@@ -385,10 +493,16 @@
       try { localStorage.setItem('mpname', myName); } catch (e) {}
       var code = cleanCode();
       if (!code) { status('Type the room code first!'); return; }
-      ensurePeer(function (PeerCtor) { startJoin(code, PeerCtor); },
-        function () { status('No network for multiplayer 😢'); });
+      reconnectTries = 0; reconGaveUp = false; lastReconnAt = 0;
+      myJoinCode = code;
+      ensurePeer(function (PeerCtor) {
+        PeerCtorSaved = PeerCtor;
+        startJoin(code, PeerCtor);
+      }, function () { status('No network for multiplayer 😢'); });
     });
     document.getElementById('mpLeave').addEventListener('click', function () {
+      myJoinCode = null; PeerCtorSaved = null;
+      reconnectTries = 0; reconGaveUp = false;
       resetNet();
       status('Left the room. Pick a code and CREATE or JOIN.');
     });
