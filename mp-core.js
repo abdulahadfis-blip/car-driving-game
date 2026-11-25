@@ -152,8 +152,8 @@
       ctx.fillText(String(name).slice(0, 12), 128, 42);
       var tex = new THREE.CanvasTexture(canvas);
       var spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthWrite: false }));
-      spr.scale.set(4, 1, 1);
-      spr.position.y = 2.9;
+      spr.scale.set(5, 1.25, 1);
+      spr.position.y = 3.1;
       return spr;
     }
 
@@ -180,6 +180,14 @@
         g.add(wh);
       }
       g.add(makeNameSprite(name));
+      // Tall light pillar above the car so friends can spot each other
+      // from far away (kids drive in different directions fast!)
+      var beacon = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.5, 0.5, 40, 8),
+        new THREE.MeshBasicMaterial({ color: colorHex, transparent: true,
+          opacity: 0.28, depthWrite: false }));
+      beacon.position.y = 20;
+      g.add(beacon);
       scene.add(g);
       return g;
     }
@@ -225,10 +233,11 @@
       peer = new PeerCtor('acmp-' + code + '-h');
       peer.on('open', function (id) {
         myNetId = id;
-        status('Hosting room ' + code + '! Tell your friend the code.');
+        status('Room ' + code + ' is LIVE! Waiting for friends to JOIN...');
       });
       peer.on('connection', function (conn) {
         conns.push(conn);
+        status('A friend connected! Look for the light pillar!');
         conn.on('data', function (msg) {
           if (msg && msg.t === 'me') {
             joinerStates[conn.peer] = {
@@ -259,7 +268,7 @@
         myNetId = id;
         hostConn = peer.connect('acmp-' + code + '-h', { reliable: true });
         hostConn.on('open', function () {
-          status('Joined room ' + code + '!');
+          status('Joined room ' + code + '! Look for the light pillar!');
           hostConn.on('data', function (msg) {
             if (msg && msg.t === 'all') {
               var seen = {};
@@ -306,22 +315,42 @@
       }
     }, 100);
 
-    /* ================= patch update: remotes + recenter tracking ================= */
+    // ================= patch update: remotes + recenter tracking =================
+    // The game has TWO kinds of big position jumps and they must be
+    // treated differently:
+    //   a) WORLD WRAP (drive past 500 units): the game teleports the car
+    //      back to (0,0) AND shifts the whole world (ground, roads, trees)
+    //      by the same amount. Our origin offset must grow by the jump.
+    //   b) RESET (R key / Reset button): the car teleports to (0,0) but
+    //      the world does NOT move. Origins must NOT change — the car
+    //      really did teleport to a different true-world spot.
+    // We tell them apart by watching the ground mesh: on a wrap the
+    // ground shifts by the same delta; on a reset it stays put.
     var origUpdate = window.update;
+    var groundRef = (typeof ground !== 'undefined') ? ground : null;
     window.update = function () {
       var prevX = carState.x, prevZ = carState.z;
+      var g0x = groundRef ? groundRef.position.x : 0;
+      var g0z = groundRef ? groundRef.position.z : 0;
       origUpdate.apply(this, arguments);
       var jumpX = prevX - carState.x;
       var jumpZ = prevZ - carState.z;
       if (Math.abs(jumpX) > 100 || Math.abs(jumpZ) > 100) {
-        // world just recentered: my frame origin moved by (jumpX, jumpZ)
-        myOrigin.x += jumpX;
-        myOrigin.z += jumpZ;
-        Object.keys(players).forEach(function (pid) {
-          var r = players[pid];
-          r.cx -= jumpX; r.cz -= jumpZ;
-          r.tx -= jumpX; r.tz -= jumpZ;
-        });
+        var worldMoved = groundRef &&
+          Math.abs((g0x - groundRef.position.x) - jumpX) < 15 &&
+          Math.abs((g0z - groundRef.position.z) - jumpZ) < 15;
+        if (worldMoved) {
+          // real wrap: shift my origin so remote car positions stay true
+          myOrigin.x += jumpX;
+          myOrigin.z += jumpZ;
+          Object.keys(players).forEach(function (pid) {
+            var r = players[pid];
+            r.cx -= jumpX; r.cz -= jumpZ;
+            r.tx -= jumpX; r.tz -= jumpZ;
+          });
+        }
+        // Reset teleport: do nothing. Origins stay correct and the next
+        // network update (10x per second) re-places every remote car.
       }
       Object.keys(players).forEach(function (pid) {
         var r = players[pid];
